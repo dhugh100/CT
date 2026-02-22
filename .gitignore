@@ -1,0 +1,18 @@
+# 1. Ignore everything by default
+*
+
+# 2. Allow directories (required so Git can search them for files)
+!*/
+
+# 3. Whitelist C source and header files
+!*.c
+!*.h
+
+# 4. Whitelist build and configuration files
+!Makefile
+!CMakeLists.txt
+!.gitignore
+!README.md
+
+# Whitelist bash scripts
+!*.sh
