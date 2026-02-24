@@ -320,20 +320,17 @@ int legal_play(State *s, unsigned char *o)
 // - Determine the winner and next player
 // - Update trick number and hand done status
 // - Update trick winner array
-void apply_play(State *sp, UC action)
+void apply_play(State *sp, UC index)
 {
     // Save some typing
     char n = HAND_SIZE - sp->trick_num;
     char p = sp->to_act;
     char tn = sp->trick_num;
 
-    // Get card index
-    UC ci = bind_card_index_to_action(sp, action);
-
     // Save in history and remove card
-    sp->hp[p].card[tn].suit = sp->hand[p].card[ci].suit;
-    sp->hp[p].card[tn].rank = sp->hand[p].card[ci].rank;
-    remove_card(sp, p, ci);
+    sp->hp[p].card[tn].suit = sp->hand[p].card[index].suit;
+    sp->hp[p].card[tn].rank = sp->hand[p].card[index].rank;
+    remove_card(sp, p, index);
 
     // Adjust state and played history information 
     // - If leader and first play, set trump and led suit

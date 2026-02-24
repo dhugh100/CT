@@ -74,7 +74,8 @@ void play_hand_policy(State *s, Strat *strat, long strat_count, EvalStats *stats
         if (s->stage == BID) {
             apply_bid(s, chosen_action);
         } else {
-            apply_play(s, chosen_action);
+            UC card_index = bind_card_index_to_action(s, chosen_action); 
+            apply_play(s, card_index);
         }
     }
 }
@@ -102,7 +103,8 @@ void play_hand_random(State *s)
         if (s->stage == BID) {
             apply_bid(s, chosen_action);
         } else {
-            apply_play(s, chosen_action);
+            UC card_index = bind_card_index_to_action(s, chosen_action); 
+            apply_play(s, card_index);
         }
     }
 }
