@@ -92,10 +92,10 @@ train_models() {
             local output_file="${TEMP_DIR}/run_${i}.bin"
             
             log "Starting run $((i + 1))/$RUNS with seed $run_seed"
-            log "Executing ./bin/ct $THREADS $ITERATIONS $output_file"
+            log "Executing ./bin/ct $THREADS $ITERATIONS $output_file $run_seed"
             
             # Run training
-            ./bin/ct $THREADS $ITERATIONS "$output_file" >> "$LOG_FILE" 2>&1
+            ./bin/ct $THREADS $ITERATIONS $output_file $run_seed >> "$LOG_FILE" 2>&1
             
             if [ $? -ne 0 ]; then
                 log_error "Training run $i failed"

@@ -94,8 +94,8 @@ void save_strategy_file(Node **hash_table, int threads, const char *filename)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 4) {
-        fprintf(stderr, "Usage: %s <threads> <iterations> <output_file>\n", argv[0]);
+    if (argc != 5) {
+        fprintf(stderr, "Usage: %s <threads> <iterations> <output_file> <seed>\n", argv[0]);
         return 1;
     }
     
@@ -103,7 +103,8 @@ int main(int argc, char *argv[])
     config.threads = atoi(argv[1]);
     config.iterations = atoi(argv[2]);
     config.output_file = argv[3];
-    config.base_seed = (unsigned int)time(NULL);
+    config.base_seed = atoi(argv[4]);
+    if (config.base_seed == 0) config.base_seed = (unsigned int)time(NULL);
     
     printf("=== CFR Training ===\n");
     printf("Threads: %d\n", config.threads);
