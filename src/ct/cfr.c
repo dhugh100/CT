@@ -161,7 +161,8 @@ float recurse(State *sp, Node **hash_table, int p, int thread_num)
         if (sp->stage == BID) {
             apply_bid(&next_state, actions[i]);
         } else {
-            apply_play(&next_state, actions[i]);
+            UC card_index = bind_card_index_to_action(&next_state, actions[i]);
+            apply_play(&next_state, card_index);
         }
         
         // Recurse
