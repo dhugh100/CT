@@ -404,10 +404,12 @@ $TIMESTAMP,$RUNS,$ITERATIONS,$THREADS,$EVAL_GAMES,$BASE_SEED,$training_duration,
 EOF
 
     # Create easy to find links for use in testing
-    rm -f "$pwd/last_*"
-    ln -f -s "$FINAL_STRATEGY $pwd/last_strategy.bin"
-    ln -f -s "$CSV_FILE $pwd/last_results.csv"
-    ln -f -s "$DATASET_FILE $pwd/last_dataset.csv"
+    rm -f "$PWD/last_strategy.bin"
+    rm -f "$PWD/last_results.csv"
+    rm -f "$PWD/last_dataset.csv"
+    ln -s "$FINAL_STRATEGY" "$PWD/last_strategy.bin"
+    ln -s "$CSV_FILE" "$PWD/last_results.csv"
+    ln -s "$DATASET_FILE" "$PWD/last_dataset.csv"
 
 
     # Summary

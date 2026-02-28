@@ -10,11 +10,17 @@ typedef struct {
 } Stream;
 
 // Compare two Strat records by key (for qsort and merge comparison)
+// - If key is equal, check action count and then actions
+// - Need to include to separate nodes with different actions
 static int compare_keys(const void *a, const void *b)
 {
     const Strat *sa = (const Strat *)a;
     const Strat *sb = (const Strat *)b;
-    return memcmp(sa->bits, sb->bits, sizeof(Key));
+    int _1st = memcmp(sa->bits, sb->bits, sizeof(Key));
+    if (_1st != 0) return _1st;
+    if (sa->action_count != sb->action_count)
+         return (int)sa->action_count - (int)sb->action_count;
+     return memcmp(sa->action, sb->action, sa->action_count);
 }
 
 // Load one file into memory, sort it, write it back sorted.
@@ -122,7 +128,9 @@ static int kway_merge(Stream *streams, int n, const char *output_file,
         Strat *s = &streams[idx].current;
         (*input_count)++;
 
-        if (dup_count == 0 || memcmp(s->bits, accum.bits, sizeof(Key)) != 0) {
+        if (dup_count == 0 || memcmp(s->bits, accum.bits, sizeof(Key)) != 0 ||
+            s->action_count != accum.action_count || 
+            memcmp(s->action,accum.action,accum.action_count != 0)) {
             // Write completed group (if any) before starting a new one
             if (dup_count > 0) {
                 for (int j = 0; j < accum.action_count; j++)
