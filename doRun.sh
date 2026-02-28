@@ -402,7 +402,13 @@ main() {
     cat >> "$CSV_FILE" << EOF
 $TIMESTAMP,$RUNS,$ITERATIONS,$THREADS,$EVAL_GAMES,$BASE_SEED,$training_duration,$merge_duration,$total_duration,$nodes_before,$nodes_after,$prune_percent,$policy_games_won,$policy_win_percent,$policy_hands_won,$policy_tricks_won,$policy_nodes_found,$policy_nodes_not_found,$policy_coverage_percent,$random_games_won,$random_win_percent,$random_hands_won,$random_tricks_won,$improvement_games,$improvement_hands,$improvement_tricks
 EOF
-    
+
+    # Create easy to find links for use in testing
+    ln -f -s $FINAL_STRATEGY $pwd/last_strategy.bin
+    ln -f -s $CSV_FILE $pwd/last_results.csv
+    ln -f -s $DATASET_FILE $pwd/last_dataset.csv
+
+
     # Summary
     log ""
     log "========================================="
