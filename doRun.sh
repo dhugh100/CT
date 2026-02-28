@@ -48,6 +48,7 @@ TEMP_DIR="${RUN_DIR}/temp"
 LOG_FILE="${RUN_DIR}/run.log"
 CSV_FILE="${RUN_DIR}/results.csv"
 FINAL_STRATEGY="${RUN_DIR}/final_strategy.bin"
+DATASET_FILE="${RUN_DIR}/dataset.csv"
 
 # Create directories
 mkdir -p "$RUN_DIR"
@@ -259,6 +260,27 @@ evaluate_strategy() {
 }
 
 # ==============================================================================
+# Dataset Generation Phase
+# ==============================================================================
+
+generate_dataset() {
+    log "=== Generating Self-Play Dataset ==="
+    log "Executing ./bin/ct-playa $FINAL_STRATEGY $EVAL_GAMES 2 $BASE_SEED $DATASET_FILE"
+
+    ./bin/ct-playa "$FINAL_STRATEGY" "$EVAL_GAMES" 2 "$BASE_SEED" "$DATASET_FILE" \
+        > "${TEMP_DIR}/dataset.log" 2>&1
+
+    if [ $? -ne 0 ]; then
+        log_error "Dataset generation failed"
+        cat "${TEMP_DIR}/dataset.log"
+        return 1
+    fi
+
+    local record_count=$(( $(wc -l < "$DATASET_FILE") - 1 ))
+    log "Dataset written: $DATASET_FILE ($record_count decision records)"
+}
+
+# ==============================================================================
 # Main Execution
 # ==============================================================================
 
@@ -345,7 +367,15 @@ main() {
         exit 1
     fi
     IFS=',' read -r random_games_won random_win_percent random_hands_won random_tricks_won _ _ _ <<< "$random_result"
-    
+
+    # Generate self-play dataset
+    log "Starting dataset generation..."
+    generate_dataset
+    if [ $? -ne 0 ]; then
+        log_error "Dataset generation failed"
+        exit 1
+    fi
+
     # Set defaults for any empty values
     policy_games_won=${policy_games_won:-0}
     policy_win_percent=${policy_win_percent:-0.0}
@@ -381,6 +411,7 @@ EOF
     log "Total Duration: ${total_duration}s (Training: ${training_duration}s, Merge: ${merge_duration}s)"
     log "Final Strategy: $FINAL_STRATEGY"
     log "Results CSV: $CSV_FILE"
+    log "Dataset: $DATASET_FILE"
     log ""
     log "Performance Summary:"
     log "  Policy win rate: ${policy_win_percent}%"

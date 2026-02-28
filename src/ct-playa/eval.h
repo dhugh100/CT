@@ -18,13 +18,15 @@ typedef struct {
 
 // Evaluation modes
 typedef enum {
-    MODE_POLICY,  // Machine uses trained policy
-    MODE_RANDOM   // Both players play randomly
+    MODE_POLICY,     // P0 uses trained policy, P1 plays randomly
+    MODE_RANDOM,     // Both players play randomly
+    MODE_SELF_PLAY   // Both players use trained policy (for dataset generation)
 } EvalMode;
 
 // Evaluation functions
 void init_eval_stats(EvalStats *stats);
 void print_eval_stats(EvalStats *stats);
 void eval_games(Strat *strat, long strat_count, int iterations, unsigned int seed, EvalMode mode, EvalStats *stats);
+void eval_games_selfplay(Strat *strat, long strat_count, int iterations, unsigned int seed, EvalStats *stats, FILE *dataset_fp);
 
 #endif // EVAL_H
