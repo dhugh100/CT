@@ -35,18 +35,21 @@ typedef unsigned char UC;
 // Bits 567 = T = Trump, O = Other (non-trump), P = pre-trump,
 // Bits 0-3 = H = High (KQA), S =Special (J10), M = Medium (5-9) L = Low (2-4)
 
-#define TH 0b10001000
-#define TS 0b10000100
-#define TM 0b10000010
-#define TL 0b10000001
-#define OH 0b01001000
-#define OS 0b01000100
-#define OM 0b01000010
-#define OL 0b01000001
-#define PH 0b00101000
-#define PS 0b00100100
-#define PM 0b00100010
-#define PL 0b00100001
+#define TH 0b10000001
+#define TJ 0b10000010
+#define TT 0b10000011
+#define TM 0b10000100
+#define TL 0b10000101
+#define OH 0b01000001
+#define OJ 0b01000010
+#define OT 0b01000011
+#define OM 0b01000100
+#define OL 0b01000101
+#define PH 0b00100001
+#define PJ 0b00100010
+#define PT 0b00100011
+#define PM 0b00100100
+#define PL 0b00100101
 
 // History types for tracking how cards were played (for state abstraction)
 #define LT 0b10000000
@@ -56,30 +59,34 @@ typedef unsigned char UC;
 
 // Different played card types
 // Bits 4567 - L = led, R = response, T = trump, O = other (non-trump
-// Bits 0-3 = H = High (KQA), S =Special (J10), M = Medium (5-9) L = Low (2-4)
-#define LTH 0b10001000
-#define LTS 0b10000100
-#define LTM 0b10000010
-#define LTL 0b10000001
-#define RTH 0b01001000
-#define RTS 0b01000100
-#define RTM 0b01000010
-#define RTL 0b01000001
-#define LOH 0b00101000
-#define LOS 0b00100100
-#define LOM 0b00100010
-#define LOL 0b00100001
-#define ROH 0b00011000
-#define ROS 0b00010100
-#define ROM 0b00010010
-#define ROL 0b00010001
+// Bits 0-3 = H = High (KQA), J = J. T=10, M = Medium (5-9) L = Low (2-4)
+#define LTH 0b10000001
+#define LTJ 0b10000010
+#define LTT 0b10000011
+#define LTM 0b10000100
+#define LTL 0b10000101
+#define RTH 0b01000001
+#define RTJ 0b01000010
+#define RTT 0b01000011
+#define RTM 0b01000100
+#define RTL 0b01000101
+#define LOH 0b00100001
+#define LOJ 0b00100010
+#define LOT 0b00100011
+#define LOM 0b00100100
+#define LOL 0b00100101
+#define ROH 0b00010001
+#define ROJ 0b00010010
+#define ROT 0b00010011
+#define ROM 0b00010100
+#define ROL 0b00010101
 
 // Default score values
 #define DEFAULT_LOW 15   // Higher than any card rank
 #define DEFAULT_HIGH 0   // Lower than any card rank
 
-// Maximum actions per decision point
-#define MAX_ACTIONS 8
+// Maximum actions per decision point (5 trump + 5 other, or 5 pre-trump)
+#define MAX_ACTIONS 10
 
 // Card structure
 typedef struct {

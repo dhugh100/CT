@@ -2,66 +2,68 @@
 // Licensed under the GPL v3.0 License. See README.md for details.
 #include "abstraction.h"
 
-// History of led and response cards, split by trump/Other(non-trump) and 4 rank buckets
-// - Led cards are the cards that the player to act has led
-// - 4 rank buckets: High (A,K,Q: 13-14), Special (J,10: 10-12), Medium (9-5: 5-9), Low (4-2: 2-4)
-// - Each counter gets 4 bits (max count = 15, sufficient for max 6 cards in history)
-// - If rank is 0 of card slot, that means empty, and should stop counting (cards added 0 -> 5)
-// - Constants LT, LO, RT, RO are used to determine if the card was led or a response and if trump or not
-// - The history type is set during play
-// - Bytes 3-4: Led Trump - LTH (bits 7-4 of byte 2), LTS (bits 3-0 of byte 2),
-//              LTM (bits 7-4 of byte 3), LTL (bits 3-0 of byte 3)
-// - Bytes 5-6: Led Other - LOH (bits 7-4 of byte 4), LOS (bits 3-0 of byte 4),
-//              LOM (bits 7-4 of byte 5), LOL (bits 3-0 of byte 5)
-// - Bytes 7-8: Response Trump - RTH (bits 7-4 of byte 6), RTS (bits 3-0 of byte 6),
-//              RTM (bits 7-4 of byte 7), RTL (bits 3-0 of byte 7)
-// - Bytes 9-10: Response Other - ROH (bits 7-4 of byte 8), ROS (bits 3-0 of byte 8),
-//              ROM (bits 7-4 of byte 9), ROL (bits 3-0 of byte 9)
+// History of led and response cards, split by trump/other (non-trump) with 5 rank buckets.
+// h_type encodes both context (upper nibble) and rank bucket (lower nibble):
+//   Upper nibble: bit7=Led Trump, bit6=Resp Trump, bit5=Led Other, bit4=Resp Other
+//   Lower nibble: 1=H, 2=J, 3=10, 4=M, 5=L
+//
+// Bit budget per context — Trump (1 suit): H=2, J=1, 10=1, M=3, L=2 → 9 bits
+//                          Other (3 suits): H=4, J=2, 10=2, M=4, L=4 → 16 bits
+// Total: 2×9 + 2×16 = 50 bits packed into 7 bytes (bytes 3-9), 6 spare bits in byte 5.
+//
+// Byte 3: [LTH:2|RTH:2|LTJ:1|RTJ:1|LT10:1|RT10:1]   Trump H/J/10 pairs
+// Byte 4: [LTM:3|RTM:3|LTL:2]                         Trump M + LTL
+// Byte 5: [RTL:2|spare:6]                              Trump RTL
+// Byte 6: [LOH:4|LOJ:2|LO10:2]                        Led Other H/J/10
+// Byte 7: [LOM:4|LOL:4]                                Led Other M/L
+// Byte 8: [ROH:4|ROJ:2|RO10:2]                        Resp Other H/J/10
+// Byte 9: [ROM:4|ROL:4]                                Resp Other M/L
 void abs_history(State *s, Key *k)
 {
-    // Loop through played cards and update counters
-    for (UC i = 0; i < HAND_SIZE; i++)
-    {
+    for (UC i = 0; i < HAND_SIZE; i++) {
         Card c = s->hp[s->to_act].card[i];
         UC f = s->h_type[s->to_act][i];
 
-        if (c.rank == 0) break; // Stop loop, as cards are added from index 0 to 5
+        if (c.rank == 0) break; // Cards are added from index 0; first zero means done
 
-        // Determine which bucket this card belongs to
-        UC bucket = 0;
-        if (c.rank >= 12 && c.rank <= 14) bucket = 0;       // High: A, K, Q
-        else if (c.rank == 10 || c.rank == 11) bucket = 1; // Special: J, 10
-        else if (c.rank >= 5 && c.rank <= 9)  bucket = 2;   // Medium: 9-5
-        else if (c.rank >= 2 && c.rank <= 4) bucket = 3;    // Low: 4-2
-        else assert(false && "Invalid card rank");
+        // Lower nibble of h_type: 1=H, 2=J, 3=10, 4=M, 5=L
+        UC rank = f & 0x0F;
 
-        // Update appropriate bytes based on led/response and trump/other
-        // Test only the type bit in the upper nibble to avoid rank-bit overlap.
-        // Stored h_type values use: bit 7 = Led Trump, bit 5 = Led Other,
-        // bit 6 = Response Trump, bit 4 = Response Other.
-        if (f & 0x80) {  // Led Trump (bytes 3-4)
-            if (bucket == 0) k->bits[3] += 0x10;      // LTH in upper nibble
-            else if (bucket == 1) k->bits[3] += 0x01; // LTS in lower nibble
-            else if (bucket == 2) k->bits[4] += 0x10; // LTM in upper nibble
-            else k->bits[4] += 0x01;                  // LTL in lower nibble
+        if (f & 0x80) {          // Led Trump (bytes 3-5)
+            switch (rank) {
+                case 1: k->bits[3] += 0x40; break; // LTH  [7:6]
+                case 2: k->bits[3] += 0x08; break; // LTJ  [3]
+                case 3: k->bits[3] += 0x02; break; // LT10 [1]
+                case 4: k->bits[4] += 0x20; break; // LTM  [7:5]
+                case 5: k->bits[4] += 0x01; break; // LTL  [1:0]
+            }
         }
-        else if (f & 0x20) {  // Led Other (bytes 5-6)
-            if (bucket == 0) k->bits[5] += 0x10;      // LOH in upper nibble
-            else if (bucket == 1) k->bits[5] += 0x01; // LOS in lower nibble
-            else if (bucket == 2) k->bits[6] += 0x10; // LOM in upper nibble
-            else k->bits[6] += 0x01;                  // LOL in lower nibble
+        else if (f & 0x40) {     // Response Trump (bytes 3-5)
+            switch (rank) {
+                case 1: k->bits[3] += 0x10; break; // RTH  [5:4]
+                case 2: k->bits[3] += 0x04; break; // RTJ  [2]
+                case 3: k->bits[3] += 0x01; break; // RT10 [0]
+                case 4: k->bits[4] += 0x04; break; // RTM  [4:2]
+                case 5: k->bits[5] += 0x40; break; // RTL  [7:6]
+            }
         }
-        else if (f & 0x40) {  // Response Trump (bytes 7-8)
-            if (bucket == 0) k->bits[7] += 0x10;      // RTH in upper nibble
-            else if (bucket == 1) k->bits[7] += 0x01; // RTS in lower nibble
-            else if (bucket == 2) k->bits[8] += 0x10; // RTM in upper nibble
-            else k->bits[8] += 0x01;                  // RTL in lower nibble
+        else if (f & 0x20) {     // Led Other (bytes 6-7)
+            switch (rank) {
+                case 1: k->bits[6] += 0x10; break; // LOH  [7:4]
+                case 2: k->bits[6] += 0x04; break; // LOJ  [3:2]
+                case 3: k->bits[6] += 0x01; break; // LO10 [1:0]
+                case 4: k->bits[7] += 0x10; break; // LOM  [7:4]
+                case 5: k->bits[7] += 0x01; break; // LOL  [3:0]
+            }
         }
-        else if (f & 0x10) {  // Response Other (bytes 9-10)
-            if (bucket == 0) k->bits[9] += 0x10;      // ROH in upper nibble
-            else if (bucket == 1) k->bits[9] += 0x01; // ROS in lower nibble
-            else if (bucket == 2) k->bits[10] += 0x10; // ROM in upper nibble
-            else k->bits[10] += 0x01;                  // ROL in lower nibble
+        else if (f & 0x10) {     // Response Other (bytes 8-9)
+            switch (rank) {
+                case 1: k->bits[8] += 0x10; break; // ROH  [7:4]
+                case 2: k->bits[8] += 0x04; break; // ROJ  [3:2]
+                case 3: k->bits[8] += 0x01; break; // RO10 [1:0]
+                case 4: k->bits[9] += 0x10; break; // ROM  [7:4]
+                case 5: k->bits[9] += 0x01; break; // ROL  [3:0]
+            }
         }
     }
 }
@@ -141,7 +143,7 @@ Key build_key(State *sp)
     k.bits[2] |= (sp->trick_num & 0b111) << 5;
     k.bits[2] |= (sp->led_suit & 0b11) << 3;
 
-    // Bytes 3-10: History counters
+    // Bytes 3-9: History counters (byte 10 spare)
     abs_history(sp, &k);
     // Bytes 11-14: Cards in hand counters
     abs_cards_in_hand(sp, &k);

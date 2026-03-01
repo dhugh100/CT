@@ -134,68 +134,80 @@ void remove_card(State *sp, char p, char index)
     sp->hand[p].card[HAND_SIZE - 1].rank = 0;
 }
 
+// Return the bucket for a card based on rank
+UC get_bucket(Card c)
+{
+    UC bucket = 0;
+    if (c.rank >= 12 && c.rank <=14) bucket = 0;        // High: A], K, Q
+    else if (c.rank == 11) bucket = 1;                   // J
+    else if (c.rank == 10) bucket = 2;                   // 10
+    else if (c.rank >= 5 && c.rank <=9) bucket = 3;     // Medium: 9-5
+    else if (c.rank >= 2 && c.rank <=4) bucket = 4;     // Low: 4-2
+    return bucket;  
+}   
+
 
 // Return the history type of the played card
 // Led/Response, Trump/Other, Rank
 UC match_history_to_card(UC hf, Card c)
 {
-    UC bucket = 0;
-    if (c.rank >= 12 && c.rank <=14) bucket = 0;        // High: A], K, Q
-    else if (c.rank >= 10 && c.rank <= 11) bucket = 1;   // Special: J, 10
-    else if (c.rank >= 5 && c.rank <=9) bucket = 2;    // Medium: 9-5
-    else if (c.rank >= 2 && c.rank <=4) bucket = 3;  // Low: 4-2
+    UC bucket = get_bucket(c);
 
     // Determine history type based on flags and bucket
-    if (hf & LT) 
-        return (bucket == 0) ? LTH : (bucket == 1) ? LTS : (bucket == 2) ? LTM : LTL;
-    else if (hf & RT) 
-        return (bucket == 0) ? RTH : (bucket == 1) ? RTS : (bucket == 2) ? RTM : RTL;
-    else if (hf & LO) 
-        return (bucket == 0) ? LOH : (bucket == 1) ? LOS : (bucket == 2) ? LOM : LOL;
-    else if (hf & RO) 
-        return (bucket == 0) ? ROH : (bucket == 1) ? ROS : (bucket == 2) ? ROM : ROL;
+    if (hf & LT)
+        return (bucket == 0) ? LTH : (bucket == 1) ? LTJ : (bucket == 2) ? LTT : (bucket == 3) ? LTM : LTL;
+    else if (hf & RT)
+        return (bucket == 0) ? RTH : (bucket == 1) ? RTJ : (bucket == 2) ? RTT : (bucket == 3) ? RTM : RTL;
+    else if (hf & LO)
+        return (bucket == 0) ? LOH : (bucket == 1) ? LOJ : (bucket == 2) ? LOT : (bucket == 3) ? LOM : LOL;
+    else if (hf & RO)
+        return (bucket == 0) ? ROH : (bucket == 1) ? ROJ : (bucket == 2) ? ROT : (bucket == 3) ? ROM : ROL;
+    assert(false && "Invalid history type in match_history_to_card");
+    return 0;
 }  
 
 
 bool match_card_to_action(Card c, UC action, UC trump)
 {
     // Determine which bucket this card belongs to
-    UC bucket = 0;
-    if (c.rank >= 12 && c.rank <= 14) bucket = 0;       // High: A, K, Q
-    else if (c.rank >= 10 && c.rank <= 11) bucket = 1; // Special: J, 10
-    else if (c.rank >= 5 && c.rank <= 9)  bucket = 2;   // Medium: 9-5
-    else if (c.rank >= 2 && c.rank <= 4) bucket = 3;    // Low: 4-2
+    UC bucket = get_bucket(c);
 
     switch (action) {
         // Pre-trump actions (trump not declared yet)
         case PH:
             return (bucket == 0);
-        case PS:
+        case PJ:
             return (bucket == 1);
-        case PM:
+        case PT:
             return (bucket == 2);
-        case PL:
+        case PM:
             return (bucket == 3);
+        case PL:
+            return (bucket == 4);
         
         // Trump actions
         case TH:
             return (c.suit == trump && bucket == 0);
-        case TS:
+        case TJ:
             return (c.suit == trump && bucket == 1);
-        case TM:
+        case TT:
             return (c.suit == trump && bucket == 2);
-        case TL:
+        case TM:
             return (c.suit == trump && bucket == 3);
+        case TL:
+            return (c.suit == trump && bucket == 4);
         
         // Other (non-trump) actions
         case OH:
             return (c.suit != trump && bucket == 0);
-        case OS:
+        case OJ:
             return (c.suit != trump && bucket == 1);
-        case OM:
+        case OT:
             return (c.suit != trump && bucket == 2);
-        case OL:
+        case OM:
             return (c.suit != trump && bucket == 3);
+        case OL:
+            return (c.suit != trump && bucket == 4);
         
         default:
             assert(false && "Invalid action in match_action");
@@ -260,7 +272,7 @@ bool is_legal_play(State *s, Card c)
 }
 // Return legal plays as abstracted actions 
 // - Abstracted action must be possible with existing cards AND legal given context
-// - Max 12 legal actions (Trump/Other/Pre-trump × High/Special/Medium/Low)
+// - Max 15 legal actions (Trump/Other/Pre-trump × High/J/T/Medium/Low)
 // - FLAG is used to indicate if action was added already, only add action once
 // - Card index bind to action during play will handle multiple cards for actions
 int legal_play(State *s, unsigned char *o)
@@ -278,25 +290,35 @@ int legal_play(State *s, unsigned char *o)
         UC action = 0;
         
         // Pre-trump, not yet declared
+        UC bucket = get_bucket(c);
         if (s->trump == PRE_TRUMP) {
-            if (c.rank >= 12 && c.rank <= 14) action = PH;       // A, K, Q
-            else if (c.rank >= 10 && c.rank <= 11) action = PS;  // J, 10
-            else if (c.rank >= 5 && c.rank <= 9) action = PM;    // 9-5
-            else if (c.rank >= 2 && c.rank <= 4) action = PL;    // 4-2
+            switch (bucket) {
+                case 0: action = PH; break;
+                case 1: action = PJ; break;
+                case 2: action = PT; break;
+                case 3: action = PM; break;
+                case 4: action = PL; break;
+            }
         }
         // Trump declared
         else if (s->trump == c.suit) {
-            if (c.rank >= 12 && c.rank <= 14) action = TH;       // A, K, Q
-            else if (c.rank >= 10 && c.rank <= 11) action = TS;  // J, 10
-            else if (c.rank >= 5 && c.rank <= 9) action = TM;    // 9-5
-            else if (c.rank >= 2 && c.rank <= 4) action = TL;    // 4-2
+            switch (bucket) {
+                case 0: action = TH; break;
+                case 1: action = TJ; break;
+                case 2: action = TT; break;
+                case 3: action = TM; break;
+                case 4: action = TL; break;
+            }
         }
         // Other suit
         else {
-            if (c.rank >= 12 && c.rank <= 14) action = OH;       // A, K, Q
-            else if (c.rank >= 10 && c.rank <= 11) action = OS;  // J, 10
-            else if (c.rank >= 5 && c.rank <= 9) action = OM;    // 9-5
-            else if (c.rank >= 2 && c.rank <= 4) action = OL;    // 4-2
+            switch (bucket) {
+                case 0: action = OH; break;
+                case 1: action = OJ; break;
+                case 2: action = OT; break;
+                case 3: action = OM; break;
+                case 4: action = OL; break;
+            }
         }
         
         // Check if this action type already added
