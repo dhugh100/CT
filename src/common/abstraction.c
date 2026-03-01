@@ -73,6 +73,7 @@ void abs_history(State *s, Key *k)
 // - Distinguish between trump and non-trump cards, with 5 rank buckets each:
 // - High (A,K,Q: 12-14), Jack (J, 11), Ten (T, 10), Medium (5-9), Low (2-4)
 // - Special case: pretrump counting dumps into in-hand non-trump category
+// - Logic assumes set trump to pre-trump when initializing game state
 // === Trump counters
 // - Byte 10: TH: 7-6, TJ: 5, T10: 4, TM: 3-0
 // - Byte 5: TL: 5-4  (spare from history counters)

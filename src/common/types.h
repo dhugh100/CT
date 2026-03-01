@@ -153,9 +153,9 @@ typedef struct {
     char t_score[PLAYERS];       // Total score (can be negative if set)
 } State;
 
-// Key structure (15 bytes for state abstraction)
+// Key structure (12 bytes for state abstraction)
 typedef struct {
-    UC bits[15];
+    UC bits[12];
 } Key;
 
 // CFR Node structure
