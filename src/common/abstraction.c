@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Dave Hugh. All rights reserved.
 // Licensed under the GPL v3.0 License. See README.md for details.
+#include "game.h"
 #include "abstraction.h"
 
 // History of led and response cards, split by trump/other (non-trump) with 5 rank buckets.
@@ -9,7 +10,7 @@
 //
 // Bit budget per context — Trump (1 suit): H=2, J=1, 10=1, M=3, L=2 → 9 bits
 //                          Other (3 suits): H=4, J=2, 10=2, M=4, L=4 → 16 bits
-// Total: 2×9 + 2×16 = 50 bits packed into 7 bytes (bytes 3-9), 6 spare bits in byte 5.
+// Total: 2×9 + 2×16 = 50 bits packed into 7 bytes (bytes 3-9), spare bits in byte 5.
 //
 // Byte 3: [LTH:2|RTH:2|LTJ:1|RTJ:1|LT10:1|RT10:1]   Trump H/J/10 pairs
 // Byte 4: [LTM:3|RTM:3|LTL:2]                         Trump M + LTL
@@ -67,16 +68,17 @@ void abs_history(State *s, Key *k)
         }
     }
 }
+
 // Create abstract of cards in hand for the Key
-// - Distinguish between trump and non-trump cards, with 4 rank buckets each:
-//   High (A,K,Q: 13-14), Special (J,10: 10-12), Medium (9-5: 5-9), Low (4-2: 2-4)
-// - Special case for pre-trump, where trump not declared
-// -- Pretrump counting dumps into in-hand non-trump categories - trump distinction not meaningful
-// - Bytes 11-12: Trump counters - TH (bits 7-4 of byte 11), TS (bits 3-0 of byte 11), 
-//              TM (bits 7-4 of byte 12), TL (bits 3-0 of byte 12)
-// - Bytes 13-14: Other counters - OH (bits 7-4 of byte 13), OS (bits 3-0 of byte 13),
-//              OM (bits 7-4 of byte 14), OL (bits 3-0 of byte 14)
-// - Each counter gets 4 bits (max count = 15, way more than needed but clean)
+// - Distinguish between trump and non-trump cards, with 5 rank buckets each:
+// - High (A,K,Q: 12-14), Jack (J, 11), Ten (T, 10), Medium (5-9), Low (2-4)
+// - Special case: pretrump counting dumps into in-hand non-trump category
+// === Trump counters
+// - Byte 10: TH: 7-6, TJ: 5, T10: 4, TM: 3-0
+// - Byte 5: TL: 5-4  (spare from history counters)
+// === Other counters
+// - Byte 11: OH: 7-6, OJ: 5, O10: 4, OM: 3-0
+// - Byte 5: OL: 3-2
 void abs_cards_in_hand(State *s, Key *k)
 {
     // Loop through hand and update counters
@@ -84,33 +86,27 @@ void abs_cards_in_hand(State *s, Key *k)
         Card c = s->hand[s->to_act].card[i];
         if (c.rank == 0) break; // No more cards in hand
 
-        UC bucket = 0; // Which rank bucket
-        if (c.rank >= 12 && c.rank <= 14) bucket = 0;       // High: A, K, Q
-        else if (c.rank == 10 || c.rank == 11) bucket = 1; // Special: J, 10
-        else if (c.rank >= 5 && c.rank <= 9)  bucket = 2;   // Medium: 9-5
-        else if (c.rank >= 2 && c.rank <= 4) bucket = 3;    // Low: 4-2
+        UC bucket = get_bucket(c);
 
-        // Use non-trump (bytes123-14) for pre-trump
-        if (s->trump == PRE_TRUMP) {
-            if (bucket == 0) k->bits[13] += 0x10;      // OH in upper nibble
-            else if (bucket == 1) k->bits[13] += 0x01; // OS in lower nibble
-            else if (bucket == 2) k->bits[14] += 0x10; // OM in upper nibble
-            else k->bits[14] += 0x01;                  // OL in lower nibble
+        // Use non-trump for both pre-trump and not-trump, byte 10, 5
+        if (s->trump != c.suit) {
+            if (bucket == 0) k->bits[10] += 0x40;      // 10, 7-6, H
+            else if (bucket == 1) k->bits[10] += 0x20; // 10, 5, J
+            else if (bucket == 2) k->bits[10] += 0x10; // 10, 5, 10
+            else if (bucket == 3) k->bits[10] += 0x01; // 10, 3-0, M
+            else k->bits[5] += 0x40;                   // 5, 7-6, L
         }
-        // Trump cards go in bytes 11-12
+        // Trump cards go in bytes 11,5
         else if (c.suit == s->trump) {
-            if (bucket == 0) k->bits[11] += 0x10;      // TH in upper nibble
-            else if (bucket == 1) k->bits[11] += 0x01; // TS in lower nibble
-            else if (bucket == 2) k->bits[12] += 0x10; // TM in upper nibble
-            else k->bits[12] += 0x01;                  // TL in lower nibble
+            if (bucket == 0) k->bits[11] += 0x40;      // 10, 7-6, H
+            else if (bucket == 1) k->bits[11] += 0x20; // 10, 5, J
+            else if (bucket == 2) k->bits[11] += 0x10; // 10, 5, 10
+            else if (bucket == 3) k->bits[11] += 0x01; // 10, 3-0, M
+            else k->bits[5] += 0x20;                   // 5, 5-4, L
         }
-        // Non-trump cards go in bytes 13-14
         else {
-            if (bucket == 0) k->bits[13] += 0x10;      // OH in upper nibble
-            else if (bucket == 1) k->bits[13] += 0x01; // OS in lower nibble
-            else if (bucket == 2) k->bits[14] += 0x10; // OM in upper nibble
-            else k->bits[14] += 0x01;                  // OL in lower nibble
-        }
+            assert(false && "Invalid card rank in hand"); // Should never happen due to get_bucket validation
+        }                                                   // 
     }
 }
 
@@ -145,7 +141,7 @@ Key build_key(State *sp)
 
     // Bytes 3-9: History counters (byte 10 spare)
     abs_history(sp, &k);
-    // Bytes 11-14: Cards in hand counters
+    // Bytes 10-11: Cards in hand counters
     abs_cards_in_hand(sp, &k);
 
     return k;

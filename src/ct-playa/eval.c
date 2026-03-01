@@ -221,6 +221,7 @@ void eval_games(Strat *strat, long strat_count, int iterations, unsigned int see
         s.dealer = get_random(0, 1, &s.seed);
         s.stage = BID;
         s.to_act = 1 - s.dealer;
+        s.trump = PRE_TRUMP;
         
         make_cards_and_deal(&s);
         

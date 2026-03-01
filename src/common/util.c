@@ -18,15 +18,18 @@ static const char *action_mnemonic(UC action)
     switch (action) {
         // Play actions (binary defines from types.h)
         case TH: return "TH";   // Trump High
-        case TS: return "TS";   // Trump Special
+        case TJ: return "TJ";   // Trump Jack
+        case TT: return "TT";   // Trump Ten
         case TM: return "TM";   // Trump Medium
         case TL: return "TL";   // Trump Low
         case OH: return "OH";   // Other High
-        case OS: return "OS";   // Other Special
+        case OJ: return "OJ";   // Other Jack
+        case OT: return "OT";   // Other Ten
         case OM: return "OM";   // Other Medium
         case OL: return "OL";   // Other Low
         case PH: return "PH";   // Pre-trump High
-        case PS: return "PS";   // Pre-trump Special
+        case PJ: return "PJ";   // Pre-trump Jack
+        case PT: return "PT";   // Pre-trump Ten
         case PM: return "PM";   // Pre-trump Medium
         case PL: return "PL";   // Pre-trump Low
         // Bid actions (raw values 0-3, no overlap with play action bytes)

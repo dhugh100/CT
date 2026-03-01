@@ -36,7 +36,8 @@ void *train_thread(void *arg)
         s.dealer = get_random(0, 1, &s.seed);
         s.stage = BID;
         s.to_act = 1 - s.dealer; // Non-dealer bids first
-        
+        s.trump = PRE_TRUMP; 
+
         make_cards_and_deal(&s);
         
         recurse(&s, data->hash_table, 0, data->thread_id);
