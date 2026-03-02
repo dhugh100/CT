@@ -20,6 +20,10 @@ CT_OBJS = $(CT_SRCS:$(SRC_DIR)/ct/%.c=$(OBJ_DIR)/ct/%.o)
 PLAYA_SRCS = $(wildcard $(SRC_DIR)/ct-playa/*.c)
 PLAYA_OBJS = $(PLAYA_SRCS:$(SRC_DIR)/ct-playa/%.c=$(OBJ_DIR)/ct-playa/%.o)
 
+# CT-PLAYU (user vs machine) objects
+PLAYU_SRCS = $(wildcard $(SRC_DIR)/ct-playu/*.c)
+PLAYU_OBJS = $(PLAYU_SRCS:$(SRC_DIR)/ct-playu/%.c=$(OBJ_DIR)/ct-playu/%.o)
+
 # CT-KWAYP (merge) objects
 KWAYP_SRCS = $(wildcard $(SRC_DIR)/ct-kwayp/*.c)
 KWAYP_OBJS = $(KWAYP_SRCS:$(SRC_DIR)/ct-kwayp/%.c=$(OBJ_DIR)/ct-kwayp/%.o)
@@ -29,9 +33,9 @@ PBIN_SRCS = $(wildcard $(SRC_DIR)/ct-pbin/*.c)
 PBIN_OBJS = $(PBIN_SRCS:$(SRC_DIR)/ct-pbin/%.c=$(OBJ_DIR)/ct-pbin/%.o)
 
 # All targets
-ALL_TARGETS = $(BIN_DIR)/ct $(BIN_DIR)/ct-playa $(BIN_DIR)/ct-kwayp $(BIN_DIR)/ct-pbin
+ALL_TARGETS = $(BIN_DIR)/ct $(BIN_DIR)/ct-playa $(BIN_DIR)/ct-kwayp $(BIN_DIR)/ct-pbin $(BIN_DIR)/ct-playu
 
-.PHONY: all clean ct playa kwayp pbin
+.PHONY: all clean ct playa kwayp pbin playu
 
 all: $(ALL_TARGETS)
 
@@ -45,6 +49,12 @@ $(BIN_DIR)/ct: $(COMMON_OBJS) $(CT_OBJS) | $(BIN_DIR)
 playa: $(BIN_DIR)/ct-playa
 
 $(BIN_DIR)/ct-playa: $(COMMON_OBJS) $(PLAYA_OBJS) | $(BIN_DIR)
+	$(CC) $^ -o $@ $(LDFLAGS)
+
+# Build ct-playu
+playu: $(BIN_DIR)/ct-playu
+
+$(BIN_DIR)/ct-playu: $(COMMON_OBJS) $(PLAYU_OBJS) | $(BIN_DIR)
 	$(CC) $^ -o $@ $(LDFLAGS)
 
 # Build ct-kwayp (merge)
@@ -71,6 +81,10 @@ $(OBJ_DIR)/ct/%.o: $(SRC_DIR)/ct/%.c | $(OBJ_DIR)/ct
 $(OBJ_DIR)/ct-playa/%.o: $(SRC_DIR)/ct-playa/%.c | $(OBJ_DIR)/ct-playa
 	$(CC) $(CFLAGS) -Isrc/ct-playa -c $< -o $@
 
+# Compile ct-playu objects
+$(OBJ_DIR)/ct-playu/%.o: $(SRC_DIR)/ct-playu/%.c | $(OBJ_DIR)/ct-playu
+	$(CC) $(CFLAGS) -Isrc/ct-playu -c $< -o $@
+
 # Compile ct-kwayp objects
 $(OBJ_DIR)/ct-kwayp/%.o: $(SRC_DIR)/ct-kwayp/%.c | $(OBJ_DIR)/ct-kwayp
 	$(CC) $(CFLAGS) -Isrc/ct-kwayp -c $< -o $@
@@ -80,7 +94,7 @@ $(OBJ_DIR)/ct-pbin/%.o: $(SRC_DIR)/ct-pbin/%.c | $(OBJ_DIR)/ct-pbin
 	$(CC) $(CFLAGS) -Isrc/ct-pbin -c $< -o $@
 
 # Create directories
-$(OBJ_DIR)/common $(OBJ_DIR)/ct $(OBJ_DIR)/ct-playa $(OBJ_DIR)/ct-kwayp $(OBJ_DIR)/ct-pbin:
+$(OBJ_DIR)/common $(OBJ_DIR)/ct $(OBJ_DIR)/ct-playa $(OBJ_DIR)/ct-playu $(OBJ_DIR)/ct-kwayp $(OBJ_DIR)/ct-pbin:
 	mkdir -p $@
 
 $(BIN_DIR):

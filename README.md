@@ -102,6 +102,31 @@ This performs 20 training runs of 250,000 iterations each, merges all resulting 
 **Prerequisites:** Run `make all` before executing the script.
 
 ---
+### Executable — `ct-playu` (Interactive Play, `src/ct-playu/`)
+
+A rudimentary interactive version of Setback that lets a human player compete against the trained AI strategy.
+
+| File | Description |
+|---|---|
+| `play.c / play.h` | Top-level game loop, card display helpers, logging, and input utilities. Runs hands until one player reaches the w
+inning score. |
+| `bid.c / bid.h` | Bid phase: prompts the human for a bid and retrieves the AI's bid from the strategy; announces the winning bid. |
+| `hand.c / hand.h` | Play phase: handles one player's turn per trick, prompts the human for a card, validates legality, and invokes the
+ AI strategy for machine turns. |
+
+**Usage:**
+```bash
+./bin/ct-playu <strategy file> <winning score>  <dealer> <seed>
+```
+
+| Argument | Description |
+|---|---|
+| `strategy file` | Path to a merged strategy binary (e.g. `runs/.../final_strategy.bin`). |
+| `winning score` | `The score at which a game is won (e.g, 7) |
+| `dealer` | `0` for machine deals first, `1` for human deals first. |
+| `seed` | Random seed; pass `0` to use a system-generated seed. |
+
+The human player is Player 1; the AI is Player 0. Cards are displayed in suit/rank order. A log of all actions is appended to `playu.log` in the working directory.
 
 ## License
 
