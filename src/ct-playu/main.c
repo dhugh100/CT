@@ -31,7 +31,15 @@ int main(int argc, char *argv[])
     printf("Winning Score: %u\n", winning_score);
     printf("Dealer: %u\n", dealer);
     printf("Seed: %u\n\n", seed);
-    
+
+    // Zero log file if there
+    FILE *log_file = fopen("playu.log", "w"); // Open log file in append mode
+    if (!log_file) {
+        fprintf(stderr, "Error opening log file\n");
+        return 1;
+    }
+    fclose(log_file);
+ 
     // Load strategy
     long strat_count = 0;
     Strat *strat = load_strategy(strategy_file, &strat_count);

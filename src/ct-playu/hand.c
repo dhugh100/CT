@@ -108,7 +108,7 @@ int play_hand(State *s, Strat *strat, long qty, UC leading)
     if (s->to_act == 1) {
         // Show hand on screen
         char buff[48] = {0};
-        hand_string(s->hand[1], buff, sizeof(buff));
+        card_string(s->hand[1].card, HAND_SIZE,  buff, sizeof(buff));
         printf("Your hand is %s\n",buff);
 
         // Get user input for card to play
@@ -133,12 +133,21 @@ int play_hand(State *s, Strat *strat, long qty, UC leading)
          apply_play(s,index); 
     } 
 
-    // Print the card played
+    // Print the card played, log the play, and note if trump declared 
     char str[3] = {0};
     convert_formatted_to_ascii(save_c,str);
-    printf("%s played %s\n", save_actor == 0 ? "I" : "You", str);
-    sprintf(log_buff, "Stage:Play, trick:%u, actor:%s, card:%s\n",
+
+    // For first trick, first card note trump delcared 
+    if (s->trick_num == 0 && leading == 1) {
+        printf("%s played %s, trump is %c\n", save_actor == 0 ? "I" : "You", str, "CDHS"[s->trump]);
+        sprintf(log_buff, "Stage:Play, trick:%u, actor:%s, card:%s, trump is declared as %c\n",
+                save_trick_num+1, save_actor==0?"Me":"You", str, "CDHS"[s->trump]); log_msg(log_buff);
+    }
+    else {
+        printf("%s played %s\n", save_actor == 0 ? "I" : "You", str);
+        sprintf(log_buff, "Stage:Play, trick:%u, actor:%s, card:%s\n",
             save_trick_num+1, save_actor==0?"Me":"You", str); log_msg(log_buff);
+    }
 
     // Print the trick winner if the trick is done
     if (s->trick_num > save_trick_num || s->hand_done) {

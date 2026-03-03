@@ -57,23 +57,23 @@ void flush_if_needed(const char *buf)
         flush_input_buffer();
 }
 
-// Format all cards in a hand as a space-separated ASCII string (e.g. "CA H7 S2")
-// - Skips slots with rank==0 (empty/played cards)
-void hand_string(const Hand h, char *buff, int buff_size)
+// Format all cards in an array as a space-separated ASCII string (e.g. "CA H7 S2")
+// - Breaks when rank==0 (empty/played cards)
+void card_string(const Card *card_array, int array_num,  char *buff, int buff_size)
 {
     char str[4] = { 0 };
     UC i = 0;
-    for (; i < HAND_SIZE; i++) {
+    for (; i < array_num; i++) {
         if (strlen(buff) + 4 >= buff_size) {
-            fprintf(stderr, "Buffer overflow in hand_string\n");
+            fprintf(stderr, "Buffer overflow in card_string\n");
             return;
         }
-        if (h.card[i].rank == 0) {
-            strcat(buff, "  ");
-            continue;   
+        // 0 means out of cards, so skip and end string
+        if (card_array[i].rank == 0) {
+            break;   
         } else {
-            sprintf(str, "%c%c ", "CDHS"[h.card[i].suit],
-                    "  23456789TJQKA"[h.card[i].rank]);
+            sprintf(str, "%c%c ", "CDHS"[card_array[i].suit],
+                    "  23456789TJQKA"[card_array[i].rank]);
             strcat(buff, str);
         }
     }
@@ -113,10 +113,10 @@ int play_game(Strat *strat, long strat_cnt, UC winning_score, UC dealer, unsigne
         qsort(s->hand[0].card, HAND_SIZE, sizeof(Card), compare_cards);
         qsort(s->hand[1].card, HAND_SIZE, sizeof(Card), compare_cards);
         
-        char hand_buff[2][32] = { 0 };
-        hand_string(s->hand[0], &hand_buff[0][0], sizeof(hand_buff[0]));
-        hand_string(s->hand[1], &hand_buff[1][0], sizeof(hand_buff[1]));   
-        sprintf(log_buff, "Stage:Deal, dealt Me:%s, You:%s\n", hand_buff[0], hand_buff[1]); log_msg(log_buff);
+        char card_buff[2][48] = { 0 };
+        card_string(s->cards_won[0], HAND_SIZE, card_buff[0], sizeof(card_buff[0]));
+        card_string(s->cards_won[1], HAND_SIZE, card_buff[1], sizeof(card_buff[1]));   
+        sprintf(log_buff, "Stage:Deal, dealt Me:%s, You:%s\n", card_buff[0], card_buff[1]); log_msg(log_buff);
 
         // Bid phase
         bid_phase(s, strat, strat_cnt);
@@ -134,9 +134,15 @@ int play_game(Strat *strat, long strat_cnt, UC winning_score, UC dealer, unsigne
         // Adjust the score for display purposes
         // - In training score, bids are 0123, while for the user in user play they are 0,2,3,4
         // - Ignore the score return designed for CFR work and use the t_score values to determine score for display and game score tracking 
+        printf("===== Hand %u complete =====\nStage: Score: Me %i, You %i\n", 
+                hand_num, s->t_score[0], s->t_score[1]);
+        card_string(s->cards_won[0], HAND_SIZE * 2, card_buff[0], sizeof(card_buff[0]));
+        card_string(s->cards_won[1], HAND_SIZE * 2, card_buff[1], sizeof(card_buff[1]));
+        printf("Cards won: Me: %s, You: %s\n", card_buff[0], card_buff[1]);
+        sprintf(log_buff, "Stage: Score, hand:%u, Me:%i, You:%i\n", 
+                hand_num, s->t_score[0], s->t_score[1]); log_msg(log_buff);
+        sprintf(log_buff, "Cards won: Me: %s, You: %s\n", card_buff[0], card_buff[1]); log_msg(log_buff);
 
-        printf("===== Hand %u complete =====\nHand score: Me %i, You %i\n", hand_num, s->t_score[0], s->t_score[1]);
-        sprintf(log_buff, "Stage:Play, hand:%u, Me:%i, You:%i\n", hand_num, s->t_score[0], s->t_score[1]); log_msg(log_buff);
         game_score[0] += s->t_score[0];
         game_score[1] += s->t_score[1];
         dealer = 1 - dealer; // Rotate dealer each hand
@@ -144,4 +150,4 @@ int play_game(Strat *strat, long strat_cnt, UC winning_score, UC dealer, unsigne
     printf("===== Game over =====\nMy score:%i, Your score:%i\n", game_score[0], game_score[1]); 
     sprintf(log_buff, "Game over: Me:%i, You:%i\n", game_score[0], game_score[1]); log_msg(log_buff);
     return 0;
-}    
+}     

@@ -9,7 +9,7 @@
 int play_game(Strat *, long, UC, UC, unsigned int);
 void flush_input_buffer(void);
 void flush_if_needed(const char *buf);
-void hand_string(const Hand, char *, int);
+void card_string(const Card *, int, char *, int);
 void doc_state(State *, UC, UC);
 void log_msg(const char *);
 
