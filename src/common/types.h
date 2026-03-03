@@ -147,7 +147,8 @@ typedef struct {
     // Trick results
     UC trick_winner[HAND_SIZE];  // Who won each trick
     UC tricks_won[PLAYERS];      // Total tricks won by each player
-    
+    Card cards_won[PLAYERS][HAND_SIZE * 2]; // Cards won by each player (for score calculation)    
+
     // Scoring
     Score score[PLAYERS];        // Score breakdown
     char t_score[PLAYERS];       // Total score (can be negative if set)
