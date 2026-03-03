@@ -97,76 +97,75 @@ char add_game(Card card)
 }
 
 // Score the hand and return utility (P0 score - P1 score)
-int score(State *sp)
+int score(State *s)
 {
-    init_score(&sp->score[0]);
-    init_score(&sp->score[1]);
+    init_score(&s->score[0]);
+    init_score(&s->score[1]);
+    memset(&s->cards_won, 0x00, sizeof(s->cards_won));
 
     // Separate cards won by each player
-    Card cp0[HAND_SIZE * 2] = {0};
-    Card cp1[HAND_SIZE * 2] = {0};
-    UC cp0c = 0, cp1c = 0;
+    UC p0 = 0, p1 = 0;
     
     for (int i = 0; i < HAND_SIZE; i++) {
-        if (sp->trick_winner[i] == 0) {
-            cp0[cp0c++] = sp->hp[0].card[i];
-            cp0[cp0c++] = sp->hp[1].card[i];
+        if (s->trick_winner[i] == 0) {
+            s->cards_won[0][p0++] = s->hp[0].card[i];
+            s->cards_won[0][p0++] = s->hp[1].card[i];
         } else {
-            cp1[cp1c++] = sp->hp[0].card[i];
-            cp1[cp1c++] = sp->hp[1].card[i];
+            s->cards_won[1][p1++] = s->hp[0].card[i];
+            s->cards_won[1][p1++] = s->hp[1].card[i];
         }
     }
 
     // Score P0's cards
-    for (UC i = 0; i < cp0c; i++) {
-        if (cp0[i].suit == sp->trump) {
-            if (cp0[i].rank < sp->score[0].low)
-                sp->score[0].low = cp0[i].rank;
-            if (cp0[i].rank > sp->score[0].high)
-                sp->score[0].high = cp0[i].rank;
-            if (cp0[i].rank == 11)
-                sp->score[0].jack = true;
+    for (UC i = 0; i < p0; i++) {
+        if (s->cards_won[0][i].suit == s->trump) {
+            if (s->cards_won[0][i].rank < s->score[0].low)
+                s->score[0].low = s->cards_won[0][i].rank;
+            if (s->cards_won[0][i].rank > s->score[0].high)
+                s->score[0].high = s->cards_won[0][i].rank;
+            if (s->cards_won[0][i].rank == 11)
+                s->score[0].jack = true;
         }
-        sp->score[0].game += add_game(cp0[i]);
+        s->score[0].game += add_game(s->cards_won[0][i]);
     }
 
     // Score P1's cards
-    for (UC i = 0; i < cp1c; i++) {
-        if (cp1[i].suit == sp->trump) {
-            if (cp1[i].rank < sp->score[1].low)
-                sp->score[1].low = cp1[i].rank;
-            if (cp1[i].rank > sp->score[1].high)
-                sp->score[1].high = cp1[i].rank;
-            if (cp1[i].rank == 11)
-                sp->score[1].jack = true;
+    for (UC i = 0; i < p1; i++) {
+        if (s->cards_won[1][i].suit == s->trump) {
+            if (s->cards_won[1][i].rank < s->score[1].low)
+                s->score[1].low = s->cards_won[1][i].rank;
+            if (s->cards_won[1][i].rank > s->score[1].high)
+                s->score[1].high = s->cards_won[1][i].rank;
+            if (s->cards_won[1][i].rank == 11)
+                s->score[1].jack = true;
         }
-        sp->score[1].game += add_game(cp1[i]);
+        s->score[1].game += add_game(s->cards_won[1][i]);
     }
 
     // Calculate total scores
-    sp->t_score[0] = 0;
-    sp->t_score[1] = 0;
+    s->t_score[0] = 0;
+    s->t_score[1] = 0;
     
-    if (sp->score[0].low < sp->score[1].low) sp->t_score[0] += 1;
-    else sp->t_score[1] += 1;
+    if (s->score[0].low < s->score[1].low) s->t_score[0] += 1;
+    else s->t_score[1] += 1;
     
-    if (sp->score[0].high > sp->score[1].high) sp->t_score[0] += 1;
-    else sp->t_score[1] += 1;
+    if (s->score[0].high > s->score[1].high) s->t_score[0] += 1;
+    else s->t_score[1] += 1;
     
-    if (sp->score[0].game > sp->score[1].game) sp->t_score[0] += 1;
-    else if (sp->score[1].game > sp->score[0].game) sp->t_score[1] += 1;
+    if (s->score[0].game > s->score[1].game) s->t_score[0] += 1;
+    else if (s->score[1].game > s->score[0].game) s->t_score[1] += 1;
     
-    if (sp->score[0].jack) sp->t_score[0] += 1;
-    else if (sp->score[1].jack) sp->t_score[1] += 1;
+    if (s->score[0].jack) s->t_score[0] += 1;
+    else if (s->score[1].jack) s->t_score[1] += 1;
 
     // Check for set (didn't make bid)
     // winning_bid is raw (1,2,3) representing actual points (2,3,4)
-    UC bid_pts = sp->winning_bid + 1;
-    if (sp->winning_bidder == 0 && sp->t_score[0] < bid_pts)
-        sp->t_score[0] = bid_pts * -1;
-    else if (sp->winning_bidder == 1 && sp->t_score[1] < bid_pts)
-        sp->t_score[1] = bid_pts * -1;
+    UC bid_pts = s->winning_bid + 1;
+    if (s->winning_bidder == 0 && s->t_score[0] < bid_pts)
+        s->t_score[0] = bid_pts * -1;
+    else if (s->winning_bidder == 1 && s->t_score[1] < bid_pts)
+        s->t_score[1] = bid_pts * -1;
 
     // Return utility for P0
-    return sp->t_score[0] - sp->t_score[1];
+    return s->t_score[0] - s->t_score[1];
 }
