@@ -9,6 +9,8 @@ I launched this project to learn more about one aspect of machine learning while
 
 The project implements Counterfactual Regret Minimization (CFR), a game-theory algorithm used to compute near-optimal strategies for imperfect-information games, applied to the two-player card game Setback (also known as Pitch). The trainer plays thousands of games against itself, accumulating regret data across each decision point until the resulting strategy converges toward a Nash equilibrium. Multiple independent training runs are merged into a single compact strategy file using a memory-efficient k-way merge, and the final strategy is evaluated by pitting it against both a random opponent and a policy baseline. The entire pipeline — train, merge, validate, evaluate — is orchestrated by a single shell script that logs results to CSV for analysis.
 
+Also included is an interactive, terminal based game that allows play against the strategy.  Very basic,  but allows direct experience of the strategy in during play.
+
 ## Installation
 
 **Prerequisites:** GCC, GNU Make, and a POSIX-compatible shell (Linux or macOS).
