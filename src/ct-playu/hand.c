@@ -131,11 +131,15 @@ int play_hand(State *s, Strat *strat, long qty, UC leading)
     else {
         action = get_best_action(strat, qty, s);
         if (action == 0xff) {
+            sprintf(log_buff, "Stage:Play, trick:%u, actor:Me, no model action found\n", s->trick_num+1); log_msg(log_buff);
             char out[6] = {0};
             int n = legal_play(s, out);
             assert(n > 0);
             action = out[0];  // Just take the 1st one 
          }
+         else {
+            sprintf(log_buff, "Stage:Play, trick:%u, actor:Me, found model action\n", s->trick_num+1); log_msg(log_buff);
+         }  
          // Get card index for action, save card for printing, and apply play to game state
          index = bind_card_index_to_action(s, action); // Get card index for action
          save_c = s->hand[0].card[index]; 

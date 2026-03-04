@@ -49,7 +49,7 @@ void bid_phase(State *s, Strat *strat, long strat_cnt)
         bid = get_best_action(strat, strat_cnt, s);
         if (bid == 0xff) {
             bid = 0;  // For now just pass if no model bid, but could use heuristic bid here instead
-            sprintf(log_buff,"Stage:Bid, actor:Me, bid:%u, defaulting to pass\n", bid>0?bid+1:0);log_msg(log_buff);
+            sprintf(log_buff,"Stage:Bid, actor:Me, bid:%u, model bid not found, default to pass\n", bid>0?bid+1:0);log_msg(log_buff);
         }
         else {
             sprintf(log_buff, "Stage:Bid, actor:Me, bid:%u, model bid found\n", bid>0?bid+1:0);log_msg(log_buff);
