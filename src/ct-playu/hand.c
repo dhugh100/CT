@@ -2,6 +2,7 @@
 #include "play.h"
 #include "game.h"
 #include "strategy.h"
+#include "ctype.h"
 
 // Convert a two-character ASCII card (e.g. 'C','A') into a formatted Card struct
 void convert_ascii_to_formatted(Card *c, const char suit, const char rank)
@@ -51,7 +52,7 @@ UC validate_in_hand(State *s, const char str[]) {
     for (UC i = 0; i < HAND_SIZE; i++) {
         char card_str[3] = {0};
         convert_formatted_to_ascii(s->hand[s->to_act].card[i], card_str);
-        if (strncasecmp(card_str, str, 2) == 0) {
+        if (strncmp(card_str, str, 2) == 0) {
             flush_if_needed(str);
             return i; // Card is in hand
         }
@@ -59,9 +60,16 @@ UC validate_in_hand(State *s, const char str[]) {
     flush_if_needed(str);
     return 0xff;
 }
+// Force any ascii a-z to uppercase
+void to_upper(char *str, int len) {
+    for (int i = 0; i < len; i++) {
+        str[i] = toupper((unsigned char)str[i]);
+    }
+}
 
 // Prompt the human player to enter a card, repeating until the choice is valid
 // - card_input is a caller-provided 3-byte buffer for the raw input
+// - Forces to upper case
 // - Validates that the card is in the hand and is a legal play
 // - Returns the hand index of the chosen card
 UC get_user_card(State *s, char *card_input) {
@@ -70,6 +78,7 @@ UC get_user_card(State *s, char *card_input) {
     while (index == 0xff) {
         printf("Enter card to play\n");
         fgets(card_input, 3, stdin);
+        to_upper(card_input, 2); // Convert to uppercase for validation
         index = validate_in_hand(s, card_input);
         if (index == 0xff) {
             printf("Not a card in hand\n");
