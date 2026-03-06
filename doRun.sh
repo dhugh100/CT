@@ -12,18 +12,20 @@ set +e
 # Configuration and Argument Parsing
 # ==============================================================================
 
-if [ $# -ne 5 ]; then
-    echo "Usage: $0 <runs> <iterations> <threads> <eval_games> <seed>"
+if [ $# -lt 5 ] || [ $# -gt 6 ]; then
+    echo "Usage: $0 <runs> <iterations> <threads> <eval_games> <seed> [dataset_mode]"
     echo ""
     echo "Arguments:"
-    echo "  runs        - Number of training runs to perform"
-    echo "  iterations  - CFR iterations per run"
-    echo "  threads     - Number of threads per run"
-    echo "  eval_games  - Number of games for evaluation"
-    echo "  seed        - Base random seed (0 for random)"
+    echo "  runs         - Number of training runs to perform"
+    echo "  iterations   - CFR iterations per run"
+    echo "  threads      - Number of threads per run"
+    echo "  eval_games   - Number of games for evaluation"
+    echo "  seed         - Base random seed (0 for random)"
+    echo "  dataset_mode - Optional: 0=bid NN dataset, 1=play NN dataset (omit to skip)"
     echo ""
-    echo "Example:"
-    echo "  $0 20 250000 1 10000 0"
+    echo "Examples:"
+    echo "  $0 20 250000 1 10000 0        # no dataset"
+    echo "  $0 20 250000 1 10000 0 0      # bid NN dataset"
     exit 1
 fi
 
@@ -32,6 +34,7 @@ ITERATIONS=$2
 THREADS=$3
 EVAL_GAMES=$4
 BASE_SEED=$5
+DATASET_MODE=${6:-}   # empty = no dataset generation
 
 # Generate base seed if 0
 if [ $BASE_SEED -eq 0 ]; then
@@ -48,7 +51,7 @@ TEMP_DIR="${RUN_DIR}/temp"
 LOG_FILE="${RUN_DIR}/run.log"
 CSV_FILE="${RUN_DIR}/results.csv"
 FINAL_STRATEGY="${RUN_DIR}/final_strategy.bin"
-DATASET_FILE="${RUN_DIR}/dataset.csv"
+DATASET_FILE="${RUN_DIR}/dataset.bin"
 
 # Create directories
 mkdir -p "$RUN_DIR"
@@ -264,10 +267,11 @@ evaluate_strategy() {
 # ==============================================================================
 
 generate_dataset() {
-    log "=== Generating Self-Play Dataset ==="
-    log "Executing ./bin/ct-playa $FINAL_STRATEGY $EVAL_GAMES 2 $BASE_SEED $DATASET_FILE"
+    local mode=$1
+    log "=== Generating Self-Play Dataset (dataset_mode=$mode) ==="
+    log "Executing ./bin/ct-playa $FINAL_STRATEGY $EVAL_GAMES 2 $BASE_SEED $DATASET_FILE $mode"
 
-    ./bin/ct-playa "$FINAL_STRATEGY" "$EVAL_GAMES" 2 "$BASE_SEED" "$DATASET_FILE" \
+    ./bin/ct-playa "$FINAL_STRATEGY" "$EVAL_GAMES" 2 "$BASE_SEED" "$DATASET_FILE" "$mode" \
         > "${TEMP_DIR}/dataset.log" 2>&1
 
     if [ $? -ne 0 ]; then
@@ -276,8 +280,10 @@ generate_dataset() {
         return 1
     fi
 
-    local record_count=$(( $(wc -l < "$DATASET_FILE") - 1 ))
-    log "Dataset written: $DATASET_FILE ($record_count decision records)"
+    local file_size=$(stat -c%s "$DATASET_FILE" 2>/dev/null || stat -f%z "$DATASET_FILE" 2>/dev/null)
+    # sizeof(BidDataHeader)=12, sizeof(BidRecord)=72
+    local record_count=$(( (file_size - 12) / 72 ))
+    log "Dataset written: $DATASET_FILE ($record_count bid records, ${file_size} bytes)"
 }
 
 # ==============================================================================
@@ -368,12 +374,16 @@ main() {
     fi
     IFS=',' read -r random_games_won random_win_percent random_hands_won random_tricks_won _ _ _ <<< "$random_result"
 
-    # Generate self-play dataset
-    log "Starting dataset generation..."
-    generate_dataset
-    if [ $? -ne 0 ]; then
-        log_error "Dataset generation failed"
-        exit 1
+    # Generate self-play dataset (only if dataset_mode was provided)
+    if [ -n "$DATASET_MODE" ]; then
+        log "Starting dataset generation (mode=$DATASET_MODE)..."
+        generate_dataset "$DATASET_MODE"
+        if [ $? -ne 0 ]; then
+            log_error "Dataset generation failed"
+            exit 1
+        fi
+    else
+        log "Dataset generation skipped (no dataset_mode specified)"
     fi
 
     # Set defaults for any empty values
@@ -406,10 +416,12 @@ EOF
     # Create easy to find links for use in testing
     rm -f "$PWD/last_strategy.bin"
     rm -f "$PWD/last_results.csv"
-    rm -f "$PWD/last_dataset.csv"
     ln -s "$FINAL_STRATEGY" "$PWD/last_strategy.bin"
     ln -s "$CSV_FILE" "$PWD/last_results.csv"
-    ln -s "$DATASET_FILE" "$PWD/last_dataset.csv"
+    if [ -n "$DATASET_MODE" ]; then
+        rm -f "$PWD/last_dataset.bin"
+        ln -s "$DATASET_FILE" "$PWD/last_dataset.bin"
+    fi
 
 
     # Summary
@@ -420,7 +432,9 @@ EOF
     log "Total Duration: ${total_duration}s (Training: ${training_duration}s, Merge: ${merge_duration}s)"
     log "Final Strategy: $FINAL_STRATEGY"
     log "Results CSV: $CSV_FILE"
-    log "Dataset: $DATASET_FILE"
+    if [ -n "$DATASET_MODE" ]; then
+        log "Dataset: $DATASET_FILE (mode=$DATASET_MODE)"
+    fi
     log ""
     log "Performance Summary:"
     log "  Policy win rate: ${policy_win_percent}%"

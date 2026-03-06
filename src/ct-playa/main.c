@@ -10,13 +10,14 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc < 5 || argc > 6) {
-        fprintf(stderr, "Usage: %s <strategy_file> <iterations> <mode> <seed> [output_csv]\n", argv[0]);
+    if (argc < 5 || argc > 7) {
+        fprintf(stderr, "Usage: %s <strategy_file> <iterations> <mode> <seed> [output_csv [dataset_mode]]\n", argv[0]);
         fprintf(stderr, "  mode: 0=policy (P0 strategy vs random)\n");
         fprintf(stderr, "        1=random (both random)\n");
         fprintf(stderr, "        2=self-play (strategy vs strategy, requires output_csv)\n");
         fprintf(stderr, "  seed: 0 for random\n");
-        fprintf(stderr, "  output_csv: dataset file path (required for mode 2)\n");
+        fprintf(stderr, "  output_csv:   dataset file path (required for mode 2)\n");
+        fprintf(stderr, "  dataset_mode: 0=bid NN (default), 1=play NN (future)\n");
         return 1;
     }
 
@@ -24,7 +25,8 @@ int main(int argc, char *argv[])
     int iterations = atoi(argv[2]);
     int mode = atoi(argv[3]);
     int seed = atoi(argv[4]);
-    const char *output_csv = (argc == 6) ? argv[5] : NULL;
+    const char *output_csv  = (argc >= 6) ? argv[5] : NULL;
+    int dataset_mode        = (argc >= 7) ? atoi(argv[6]) : 0;
 
     if (seed == 0) seed = (unsigned int)time(NULL);
 
@@ -34,12 +36,13 @@ int main(int argc, char *argv[])
     }
 
     const char *mode_name = (mode == 0) ? "POLICY" : (mode == 1) ? "RANDOM" : "SELF-PLAY";
+    const char *dataset_mode_name = (dataset_mode == 0) ? "bid NN" : "play NN";
     printf("=== CT-PLAYA Evaluation ===\n");
     printf("Strategy file: %s\n", strategy_file);
     printf("Iterations: %d\n", iterations);
     printf("Mode: %s\n", mode_name);
     printf("Seed: %u\n", seed);
-    if (output_csv) printf("Dataset output: %s\n", output_csv);
+    if (output_csv) printf("Dataset output: %s (mode: %s)\n", output_csv, dataset_mode_name);
     printf("\n");
 
     // Load strategy
@@ -55,13 +58,13 @@ int main(int argc, char *argv[])
     EvalStats stats;
 
     if (mode == 2) {
-        FILE *fp = fopen(output_csv, "w");
+        FILE *fp = fopen(output_csv, "wb");
         if (!fp) {
             fprintf(stderr, "Error: Cannot open output file %s\n", output_csv);
             free_strategy(strat);
             return 1;
         }
-        eval_games_selfplay(strat, strat_count, iterations, seed, &stats, fp);
+        eval_games_selfplay(strat, strat_count, iterations, seed, &stats, fp, dataset_mode);
         fclose(fp);
         printf("Dataset written to %s\n", output_csv);
     } else {
