@@ -12,29 +12,31 @@ set +e
 # Configuration and Argument Parsing
 # ==============================================================================
 
-if [ $# -lt 5 ] || [ $# -gt 6 ]; then
-    echo "Usage: $0 <runs> <iterations> <threads> <eval_games> <seed> [dataset_mode]"
+if [ $# -lt 6 ] || [ $# -gt 7 ]; then
+    echo "Usage: $0 <runs> <iterations> <threads> <visit threshold> <eval_games> <seed> [dataset_mode]"
     echo ""
     echo "Arguments:"
-    echo "  runs         - Number of training runs to perform"
-    echo "  iterations   - CFR iterations per run"
-    echo "  threads      - Number of threads per run"
-    echo "  eval_games   - Number of games for evaluation"
-    echo "  seed         - Base random seed (0 for random)"
-    echo "  dataset_mode - Optional: 0=bid NN dataset, 1=play NN dataset (omit to skip)"
+    echo "  runs            - Number of training runs to perform"
+    echo "  iterations      - CFR iterations per run"
+    echo "  threads         - Number of threads per run"
+    echo "  visit threshold - Nodes visited less than threshold not saved in training"
+    echo "  eval_games      - Number of games for evaluation"
+    echo "  seed            - Base random seed (0 for random)"
+    echo "  dataset_mode    - Optional: 0=bid NN dataset, 1=play NN dataset (omit to skip)"
     echo ""
     echo "Examples:"
-    echo "  $0 20 250000 1 10000 0        # no dataset"
-    echo "  $0 20 250000 1 10000 0 0      # bid NN dataset"
+    echo "  $0 20 250000 1 3 10000 0        # no dataset"
+    echo "  $0 20 250000 1 3 10000 0 0      # bid NN dataset"
     exit 1
 fi
 
 RUNS=$1
 ITERATIONS=$2
 THREADS=$3
-EVAL_GAMES=$4
-BASE_SEED=$5
-DATASET_MODE=${6:-}   # empty = no dataset generation
+THRESHOLD=$4
+EVAL_GAMES=$5
+BASE_SEED=$6
+DATASET_MODE=${7:-}   # empty = no dataset generation
 
 # Generate base seed if 0
 if [ $BASE_SEED -eq 0 ]; then
@@ -96,10 +98,10 @@ train_models() {
             local output_file="${TEMP_DIR}/run_${i}.bin"
             
             log "Starting run $((i + 1))/$RUNS with seed $run_seed"
-            log "Executing ./bin/ct $THREADS $ITERATIONS $output_file $run_seed"
+            log "Executing ./bin/ct $THREADS $ITERATIONS $THRESHOLD $output_file $run_seed"
             
             # Run training
-            ./bin/ct $THREADS $ITERATIONS $output_file $run_seed >> "$LOG_FILE" 2>&1
+            ./bin/ct $THREADS $ITERATIONS $THRESHOLD $output_file $run_seed >> "$LOG_FILE" 2>&1
             
             if [ $? -ne 0 ]; then
                 log_error "Training run $i failed"
