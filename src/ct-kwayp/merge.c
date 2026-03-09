@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Dave Hugh. All rights reserved.
 // Licensed under the GPL v3.0 License. See README.md for details.
+#include <math.h>
 #include "merge.h"
 
 // One open stream per input file during k-way merge
@@ -103,6 +104,27 @@ static int find_min(Stream *streams, int n)
     return min;
 }
 
+// Quantize strategy to reduce memory load when reading into eval
+// - This is a lossy operation, but it allows us to read the merged file into eval without blowing up memory
+// - We can adjust the quantization level (e.g. 255) to balance precision vs memory usage
+// - We also need to copy the key and action data, since those are needed for eval and are not quantized
+void quantize_output(Strat *st, Strat_255 *st2, int action_count) {
+    memset(st2, 0, sizeof(Strat_255));
+    memcpy(st2->bits, st->bits, sizeof(Key));
+    st2->action_count = st->action_count;
+    memcpy(st2->action, st->action, action_count); 
+    for (int i = 0; i < action_count; i++) {
+        if (isnan(st->strategy[i]) || st->strategy[i] < 0.0f) {
+            st2->s255[i] = 0;
+        } else if (st->strategy[i] > 1.0f) {
+            st2->s255[i] = 255;
+        } else {
+            st2->s255[i] = (uint8_t)(st->strategy[i] * 255.0f + 0.5f); // Round to nearest
+        }
+    }       
+}
+
+
 // Perform k-way merge of pre-sorted streams, averaging duplicate keys on the fly
 static int kway_merge(Stream *streams, int n, const char *output_file,
                       long *input_count, long *output_count)
@@ -135,7 +157,11 @@ static int kway_merge(Stream *streams, int n, const char *output_file,
             if (dup_count > 0) {
                 for (int j = 0; j < accum.action_count; j++)
                     accum.strategy[j] = strat_sums[j] / (float)dup_count;
-                if (fwrite(&accum, sizeof(Strat), 1, ofp) != 1) {
+
+                // Quantize strategy before writing to reduce memory load when reading into eval
+                Strat_255 s255;
+                quantize_output(&accum, &s255, accum.action_count);
+                if (fwrite(&s255, sizeof(Strat_255), 1, ofp) != 1) {
                     fprintf(stderr, "Error: Write failed on output file\n");
                     fclose(ofp);
                     return -1;
@@ -162,7 +188,12 @@ static int kway_merge(Stream *streams, int n, const char *output_file,
     if (dup_count > 0) {
         for (int j = 0; j < accum.action_count; j++)
             accum.strategy[j] = strat_sums[j] / (float)dup_count;
-        if (fwrite(&accum, sizeof(Strat), 1, ofp) != 1) {
+
+        // Quantize strategy before writing to reduce memory load when reading into eval
+        Strat_255 s255;
+        quantize_output(&accum, &s255, accum.action_count);
+
+        if (fwrite(&s255, sizeof(Strat_255), 1, ofp) != 1) {
             fprintf(stderr, "Error: Write failed on final node\n");
             fclose(ofp);
             return -1;

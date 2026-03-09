@@ -172,11 +172,21 @@ typedef struct Node {
 } Node;
 
 // Strategy structure (for serialization/loading)
+// - Output from training, input to merge
 typedef struct {
     UC bits[sizeof(Key)];           // Key
     UC action_count;                // Number of actions
     UC action[MAX_ACTIONS];         // Actions
     float strategy[MAX_ACTIONS];    // Average strategy
 } Strat;
+
+// Strategy structure with 255 ranks (for memory-efficient eval loading)
+// - Output from kwayp, input to eval
+typedef struct {
+    UC bits[sizeof(Key)];           // Key
+    UC action_count;                // Number of actions
+    UC action[MAX_ACTIONS];         // Actions
+    UC s255[MAX_ACTIONS];           // Float broken down into 255 ranks to save memory in eval load
+} Strat_255;
 
 #endif // TYPES_H

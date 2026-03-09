@@ -5,7 +5,7 @@
 #include "util.h"
 #include <sys/stat.h>
 
-// Load strategy from binary file
+// Load strategy from binary file (Strat_255 on disk, dequantize to Strat in memory)
 Strat *load_strategy(const char *filename, long *count)
 {
     FILE *fp = fopen(filename, "rb");
@@ -13,35 +13,49 @@ Strat *load_strategy(const char *filename, long *count)
         fprintf(stderr, "Error: Cannot open strategy file %s\n", filename);
         return NULL;
     }
-    
-    // Get file size
+
     struct stat st;
     stat(filename, &st);
     long file_size = st.st_size;
-    long node_count = file_size / sizeof(Strat);
-    
+    long node_count = file_size / sizeof(Strat_255);
+
     printf("Loading strategy from %s\n", filename);
     printf("File size: %ld bytes\n", file_size);
     printf("Node count: %ld\n", node_count);
-    
-    // Allocate memory
-    Strat *strat = (Strat *)malloc(file_size);
+
+    // Read quantized records
+    Strat_255 *raw = (Strat_255 *)malloc(node_count * sizeof(Strat_255));
+    if (!raw) {
+        fprintf(stderr, "Error: Cannot allocate memory for raw strategy\n");
+        fclose(fp);
+        return NULL;
+    }
+
+    size_t nread = fread(raw, sizeof(Strat_255), node_count, fp);
+    fclose(fp);
+    if ((long)nread != node_count) {
+        fprintf(stderr, "Error: Read %zu nodes, expected %ld\n", nread, node_count);
+        free(raw);
+        return NULL;
+    }
+
+    // Dequantize into Strat array
+    Strat *strat = (Strat *)malloc(node_count * sizeof(Strat));
     if (!strat) {
         fprintf(stderr, "Error: Cannot allocate memory for strategy\n");
-        fclose(fp);
+        free(raw);
         return NULL;
     }
-    
-    // Read file
-    size_t read = fread(strat, sizeof(Strat), node_count, fp);
-    if (read != node_count) {
-        fprintf(stderr, "Error: Read %zu nodes, expected %ld\n", read, node_count);
-        free(strat);
-        fclose(fp);
-        return NULL;
+
+    for (long i = 0; i < node_count; i++) {
+        memcpy(strat[i].bits,   raw[i].bits,   sizeof(Key));
+        strat[i].action_count = raw[i].action_count;
+        memcpy(strat[i].action, raw[i].action, raw[i].action_count);
+        for (int j = 0; j < raw[i].action_count; j++)
+            strat[i].strategy[j] = raw[i].s255[j] / 255.0f;
     }
-    
-    fclose(fp);
+
+    free(raw);
     *count = node_count;
     return strat;
 }
