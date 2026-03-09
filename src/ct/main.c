@@ -13,6 +13,7 @@
 typedef struct {
     int iterations;
     int threads;
+    int visit_threshold;
     char *output_file;
     unsigned int base_seed;
 } Config;
@@ -48,7 +49,7 @@ void *train_thread(void *arg)
 }
 
 // Save strategy to binary file
-void save_strategy_file(Node **hash_table, int threads, const char *filename)
+void save_strategy_file(Node **hash_table, int threads, const char *filename, int visit_threshold)
 {
     FILE *fp = fopen(filename, "wb");
     if (!fp) {
@@ -57,13 +58,19 @@ void save_strategy_file(Node **hash_table, int threads, const char *filename)
     }
     
     long total_nodes = 0;
+    long too_few_visits = 0;
     
     // Count and write nodes
     for (int t = 0; t < threads; t++) {
         for (long i = 0; i < NODE_QTY; i++) {
             Node *cur = hash_table[t * NODE_QTY + i];
             while (cur) {
-                // Calculate average strategy
+                // Ignore low visit nodes
+                if (cur->visits < visit_threshold) {
+                    too_few_visits++;
+                    cur = cur->next;
+                    continue;
+                }    
                 Strat strat = {0};
                 memcpy(&strat.bits, &cur->key.bits, 15);
                 strat.action_count = cur->action_count;
@@ -90,26 +97,29 @@ void save_strategy_file(Node **hash_table, int threads, const char *filename)
     }
     
     fclose(fp);
+    printf("Pruned %ld nodes for being visited less than %d times\n", too_few_visits, visit_threshold, filename);
     printf("Saved %ld nodes to %s\n", total_nodes, filename);
 }
 
 int main(int argc, char *argv[])
 {
-    if (argc != 5) {
-        fprintf(stderr, "Usage: %s <threads> <iterations> <output_file> <seed>\n", argv[0]);
+    if (argc != 6) {
+        fprintf(stderr, "Usage: %s <threads> <iterations> <visit threshold> <output_file> <seed>\n", argv[0]);
         return 1;
     }
     
     Config config;
     config.threads = atoi(argv[1]);
     config.iterations = atoi(argv[2]);
-    config.output_file = argv[3];
-    config.base_seed = atoi(argv[4]);
+    config.visit_threshold = atoi(argv[3]);
+    config.output_file = argv[4];
+    config.base_seed = atoi(argv[5]);
     if (config.base_seed == 0) config.base_seed = (unsigned int)time(NULL);
     
     printf("=== CFR Training ===\n");
     printf("Threads: %d\n", config.threads);
     printf("Iterations: %d\n", config.iterations);
+    printf("Vist Thresholds: %d\n", config.visit_threshold);
     printf("Output: %s\n", config.output_file);
     printf("Base seed: %u\n", config.base_seed);
     
@@ -151,7 +161,7 @@ int main(int argc, char *argv[])
     
     // Save strategy
     printf("Saving strategy...\n");
-    save_strategy_file(hash_table, config.threads, config.output_file);
+    save_strategy_file(hash_table, config.threads, config.output_file, config.visit_threshold);
     
     // Cleanup
     free(threads);
