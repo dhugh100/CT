@@ -185,7 +185,7 @@ merge_strategies() {
 validate_strategy() {
     log "=== Validating Final Strategy ==="
     
-    ./bin/ct-pbin "$FINAL_STRATEGY" n > "${TEMP_DIR}/validation.log" 2>&1
+    ./bin/ct-pbin "$FINAL_STRATEGY" Q n > "${TEMP_DIR}/validation.log" 2>&1
     
     if [ $? -ne 0 ]; then
         log_error "Validation failed"
