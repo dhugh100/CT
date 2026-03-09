@@ -83,7 +83,7 @@ void card_string(const Card *card_array, int array_num,  char *buff, int buff_si
 // Run a full interactive game to completion
 // - Alternates dealer each hand, plays until one player reaches winning score
 // - P0 is the AI (uses strat), P1 is the human player
-int play_game(Strat *strat, long strat_cnt, UC winning_score, UC dealer, unsigned int seed)
+int play_game(Strat_255 *strat, long strat_cnt, UC winning_score, UC dealer, unsigned int seed)
 {
     // Track running game score
     int game_score[2] = { 0 }; // Game score for each player

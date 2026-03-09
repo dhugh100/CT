@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
  
     // Load strategy
     long strat_count = 0;
-    Strat *strat = load_strategy(strategy_file, &strat_count);
+    Strat_255 *strat = load_strategy(strategy_file, &strat_count);
     if (!strat) {
         return 1;
     }

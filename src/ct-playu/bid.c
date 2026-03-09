@@ -37,7 +37,7 @@ char get_user_bid(State *s)
 // Run the bid phase for one hand
 // - Both players bid in turn order; AI uses strategy, human is prompted
 // - Applies bids to game state and announces the outcome
-void bid_phase(State *s, Strat *strat, long strat_cnt)
+void bid_phase(State *s, Strat_255 *strat, long strat_cnt)
 {
     printf("===== Bid starting, first bidder is %s =====\n", s->dealer == 0 ? "you" : "me");
     UC bid = 0;

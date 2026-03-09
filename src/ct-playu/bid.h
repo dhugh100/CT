@@ -6,6 +6,6 @@
 #include "types.h"
 
 // Forward declarations
-void bid_phase(State *, Strat *, long);
+void bid_phase(State *, Strat_255 *, long);
 
 #endif // BID_H

@@ -6,7 +6,7 @@
 #include "types.h"
 
 // Forward declarations
-int play_game(Strat *, long, UC, UC, unsigned int);
+int play_game(Strat_255 *, long, UC, UC, unsigned int);
 void flush_input_buffer(void);
 void flush_if_needed(const char *buf);
 void card_string(const Card *, int, char *, int);

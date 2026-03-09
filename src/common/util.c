@@ -65,15 +65,29 @@ static const char *suit_str(UC suit)
     }
 }
 
-// Print raw bytes as binary, 8 per line, with byte-index labels
+// Print raw bytes as binary, groups of 4, wrapping at col 120
+// Format per byte: "[NNN]BBBBBBBB " = 14 chars; groups separated by "  "
 static void dump_binary(const void *data, size_t len, size_t base_idx)
 {
     const UC *p = (const UC *)data;
+    int col = 0;
     for (size_t i = 0; i < len; i++) {
-        printf("    [%3zu] ", base_idx + i);
+        // At the start of every group of 4 (after the first), emit separator or newline
+        if (i > 0 && i % 4 == 0) {
+            if (col + 4 * 14 > 120) {
+                printf("\n");
+                col = 0;
+            } else {
+                printf("  ");
+                col += 2;
+            }
+        }
+        printf("[%3zu]", base_idx + i);
         print_byte_bin(p[i]);
-        printf("\n");
+        printf(" ");
+        col += 14; // "[NNN]" (5) + 8 bits + " " (1) = 14
     }
+    if (col > 0) printf("\n");
 }
 
 // Print raw bytes as hex, 16 per line
@@ -93,11 +107,17 @@ static void print_key_decoded(const UC *bits)
 {
     // --- binary ---
     printf("Key binary:\n");
+    int col_cnt = 0;
     for (int i = 0; i < (int)sizeof(Key); i++) {
         printf("  [%2d] ", i);
         print_byte_bin(bits[i]);
-        printf("\n");
+        col_cnt++;
+        if (col_cnt >= 120) {
+            printf("\n");
+            col_cnt = 0;
+        } 
     }
+    printf("\n");
 
     // --- hex ---
     printf("Key hex:\n  ");
@@ -228,7 +248,6 @@ void print_key_binary(Key *k)
         for (int b = 7; b >= 0; b--) {
             printf("%d", (k->bits[i] >> b) & 1);
         }
-        printf("\n");
     }
 }
 
@@ -344,4 +363,48 @@ void print_strategy(Strat *s)
     // Key decoded
     print_key_decoded(s->bits);
     printf("================\n");
+}
+
+// ---------------------------------------------------------------------------
+// print_strategy_255 - Strat_255 dump (quantized, on-disk format)
+// ---------------------------------------------------------------------------
+void print_strategy_255(Strat_255 *s)
+{
+    printf("=== STRATEGY_255 ===\n");
+
+    // Raw binary of struct fields
+    printf("Strat_255 raw bytes (binary):\n");
+    printf("  bits[%zu]:\n", sizeof(Key));
+    dump_binary(s->bits, sizeof(Key), 0);
+    printf("  action_count:\n");
+    dump_binary(&s->action_count, 1, sizeof(Key));
+    printf("  action[%d]:\n", MAX_ACTIONS);
+    dump_binary(s->action, MAX_ACTIONS, sizeof(Key) + 1);
+    printf("  s255[%d]:\n", MAX_ACTIONS);
+    dump_binary(s->s255, MAX_ACTIONS, sizeof(Key) + 1 + MAX_ACTIONS);
+
+    // Raw hex of struct fields
+    printf("Strat_255 raw bytes (hex):\n");
+    printf("  bits:        "); dump_hex(s->bits, sizeof(Key));
+    printf("  action_count:"); dump_hex(&s->action_count, 1);
+    printf("  action:      "); dump_hex(s->action, MAX_ACTIONS);
+    printf("  s255:        "); dump_hex(s->s255, MAX_ACTIONS);
+
+    // Action count and decoded actions
+    printf("Action count: %d\n", s->action_count);
+    printf("Actions:      ");
+    for (int i = 0; i < s->action_count; i++)
+        printf("[%02x=%s] ", s->action[i], action_mnemonic(s->action[i]));
+    printf("\n");
+
+    // Strategy (quantized byte + decoded float)
+    printf("Strategy:     ");
+    for (int i = 0; i < s->action_count; i++)
+        printf("[%s: %3d/255=%.4f] ", action_mnemonic(s->action[i]),
+               s->s255[i], s->s255[i] / 255.0f);
+    printf("\n");
+
+    // Key decoded
+    print_key_decoded(s->bits);
+    printf("===================\n");
 }

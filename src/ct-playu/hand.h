@@ -6,6 +6,6 @@
 #include "types.h"
 
 // Forward declarations
-int play_hand(State *, Strat *, long, UC);
+int play_hand(State *, Strat_255 *, long, UC);
 
 #endif // HAND_H

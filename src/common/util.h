@@ -16,6 +16,7 @@ void print_key(Key *k);
 void print_key_binary(Key *k);
 void print_node(Node *n);
 void print_strategy(Strat *s);
+void print_strategy_255(Strat_255 *s);
 
 // Logging macro (can be disabled in production)
 #define LOG 1

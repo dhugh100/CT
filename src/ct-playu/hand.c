@@ -99,7 +99,7 @@ UC get_user_card(State *s, char *card_input) {
 // - If AI (to_act==0): looks up best action from strategy, falls back to first legal play
 // - If human (to_act==1): prompts user for a card
 // - leading: 1 if this is the lead play of the trick, 0 if the response
-int play_hand(State *s, Strat *strat, long qty, UC leading)
+int play_hand(State *s, Strat_255 *strat, long qty, UC leading)
 {    
     UC index = 0;
     UC action = 0;
