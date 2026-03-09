@@ -41,7 +41,7 @@ void print_eval_stats(EvalStats *stats)
 }
 
 // Play one hand using strategy for P0
-void play_hand_policy(State *s, Strat *strat, long strat_count, EvalStats *stats)
+void play_hand_policy(State *s, Strat_255 *strat, long strat_count, EvalStats *stats)
 {
     while (!s->hand_done) {
         UC actions[MAX_ACTIONS];
@@ -135,7 +135,7 @@ static void write_dataset_header(FILE *fp)
 }
 
 // Play one hand with both players using the strategy, buffering decisions
-static int play_hand_selfplay_record(State *s, Strat *strat, long strat_count,
+static int play_hand_selfplay_record(State *s, Strat_255 *strat, long strat_count,
                                      DecisionRecord *buf, EvalStats *stats)
 {
     int count = 0;
@@ -253,7 +253,7 @@ static void finalize_bid_data_header(FILE *fp, uint32_t count)
 
 // Play one hand recording only bid decisions that have a strategy hit.
 // Returns the number of bid records written into buf.
-static int play_hand_selfplay_bid_record(State *s, Strat *strat, long strat_count,
+static int play_hand_selfplay_bid_record(State *s, Strat_255 *strat, long strat_count,
                                          BidRecord *buf, EvalStats *stats)
 {
     int count = 0;
@@ -278,8 +278,9 @@ static int play_hand_selfplay_bid_record(State *s, Strat *strat, long strat_coun
             for (int i = 0; i < strat[sidx].action_count; i++) {
                 UC a = strat[sidx].action[i];
                 for (int j = 0; j < num_actions; j++) {
-                    if (actions[j] == a && strat[sidx].strategy[i] > best_prob) {
-                        best_prob = strat[sidx].strategy[i];
+                    float prob = strat[sidx].s255[i] / 255.0f;
+                    if (actions[j] == a && prob > best_prob) {
+                        best_prob = prob;
                         chosen_action = a;
                         break;
                     }
@@ -315,7 +316,7 @@ static int play_hand_selfplay_bid_record(State *s, Strat *strat, long strat_coun
             memset(rec->strategy, 0, sizeof(rec->strategy));
             for (int i = 0; i < strat[sidx].action_count; i++) {
                 UC a = strat[sidx].action[i];
-                if (a < 4) rec->strategy[a] = strat[sidx].strategy[i];
+                if (a < 4) rec->strategy[a] = strat[sidx].s255[i] / 255.0f;
             }
         }
 
@@ -335,7 +336,7 @@ static void flush_bid_records_to_bin(FILE *fp, BidRecord *buf, int count)
 }
 
 // Run evaluation
-void eval_games(Strat *strat, long strat_count, int iterations, unsigned int seed, EvalMode mode, EvalStats *stats)
+void eval_games(Strat_255 *strat, long strat_count, int iterations, unsigned int seed, EvalMode mode, EvalStats *stats)
 {
     init_eval_stats(stats);
     
@@ -376,7 +377,7 @@ void eval_games(Strat *strat, long strat_count, int iterations, unsigned int see
 // Strategy vs strategy: play N games, record decisions to file.
 // dataset_mode: 0 = bid NN — binary BidRecord per bid decision, strategy_hit=1 only
 //               1 = play NN — CSV of all decisions with payoff [future]
-void eval_games_selfplay(Strat *strat, long strat_count, int iterations,
+void eval_games_selfplay(Strat_255 *strat, long strat_count, int iterations,
                          unsigned int seed, EvalStats *stats, FILE *dataset_fp,
                          int dataset_mode)
 {

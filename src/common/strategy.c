@@ -5,8 +5,9 @@
 #include "util.h"
 #include <sys/stat.h>
 
-// Load strategy from binary file (Strat_255 on disk, dequantize to Strat in memory)
-Strat *load_strategy(const char *filename, long *count)
+// Load strategy from binary file — keeps quantized Strat_255 in memory
+// Dequantize only at lookup time (get_best_action) to save memory
+Strat_255 *load_strategy(const char *filename, long *count)
 {
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
@@ -23,39 +24,21 @@ Strat *load_strategy(const char *filename, long *count)
     printf("File size: %ld bytes\n", file_size);
     printf("Node count: %ld\n", node_count);
 
-    // Read quantized records
-    Strat_255 *raw = (Strat_255 *)malloc(node_count * sizeof(Strat_255));
-    if (!raw) {
-        fprintf(stderr, "Error: Cannot allocate memory for raw strategy\n");
+    Strat_255 *strat = (Strat_255 *)malloc(node_count * sizeof(Strat_255));
+    if (!strat) {
+        fprintf(stderr, "Error: Cannot allocate memory for strategy\n");
         fclose(fp);
         return NULL;
     }
 
-    size_t nread = fread(raw, sizeof(Strat_255), node_count, fp);
+    size_t nread = fread(strat, sizeof(Strat_255), node_count, fp);
     fclose(fp);
     if ((long)nread != node_count) {
         fprintf(stderr, "Error: Read %zu nodes, expected %ld\n", nread, node_count);
-        free(raw);
+        free(strat);
         return NULL;
     }
 
-    // Dequantize into Strat array
-    Strat *strat = (Strat *)malloc(node_count * sizeof(Strat));
-    if (!strat) {
-        fprintf(stderr, "Error: Cannot allocate memory for strategy\n");
-        free(raw);
-        return NULL;
-    }
-
-    for (long i = 0; i < node_count; i++) {
-        memcpy(strat[i].bits,   raw[i].bits,   sizeof(Key));
-        strat[i].action_count = raw[i].action_count;
-        memcpy(strat[i].action, raw[i].action, raw[i].action_count);
-        for (int j = 0; j < raw[i].action_count; j++)
-            strat[i].strategy[j] = raw[i].s255[j] / 255.0f;
-    }
-
-    free(raw);
     *count = node_count;
     return strat;
 }
@@ -75,7 +58,7 @@ int find_node(Strat *strat, long count, Key *key)
 */
 
 // Function to perform binary search
-int find_node(Strat *strat, long qty, Key *t) {
+int find_node(Strat_255 *strat, long qty, Key *t) {
     int left = 0;
     int right = qty - 1;
 
@@ -127,36 +110,37 @@ bool is_valid_bid_action(State *s, UC action)
 
 // Get best action from strategy for current state
 // Returns action code or 0xff if no valid action found, otherwise returns the action with the highest probability
-UC get_best_action(Strat *strat, long count, State *s)
+UC get_best_action(Strat_255 *strat, long count, State *s)
 {
     // Build key from current state
     Key k = build_key(s);
-    
+
     // Find node
     int idx = find_node(strat, count, &k);
     if (idx < 0) {
         return 0xff; // Invalid action marker
     }
-    
-    // Find action with highest probability
+
+    // Find action with highest probability — dequantize only for this node
     float best_prob = -1.0f;
     UC best_action = 0xff;
-    
+
     for (int i = 0; i < strat[idx].action_count; i++) {
         if ((s->stage == 1 && is_valid_play_action(s, strat[idx].action[i])) ||
             (s->stage == 0 && is_valid_bid_action(s, strat[idx].action[i]))) {
-             if (strat[idx].strategy[i] > best_prob) {
-                best_prob = strat[idx].strategy[i];
+            float prob = strat[idx].s255[i] / 255.0f;
+            if (prob > best_prob) {
+                best_prob = prob;
                 best_action = strat[idx].action[i];
             }
-        }   
+        }
     }
-    
+
     return best_action;
 }
 
 // Free strategy memory
-void free_strategy(Strat *strat)
+void free_strategy(Strat_255 *strat)
 {
     free(strat);
 }

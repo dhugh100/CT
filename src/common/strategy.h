@@ -7,9 +7,9 @@
 #include "game.h"
 
 // Strategy loading and querying
-Strat *load_strategy(const char *filename, long *count);
-int find_node(Strat *strat, long count, Key *key);
-UC get_best_action(Strat *strat, long count, State *s);
-void free_strategy(Strat *strat);
+Strat_255 *load_strategy(const char *filename, long *count);
+int find_node(Strat_255 *strat, long count, Key *key);
+UC get_best_action(Strat_255 *strat, long count, State *s);
+void free_strategy(Strat_255 *strat);
 
 #endif // STRATEGY_H
