@@ -172,7 +172,7 @@ typedef struct Node {
 } Node;
 
 // Strategy structure (for serialization/loading)
-// - Output from training, input to merge
+// - Output from training, input to kwayp merge
 typedef struct {
     UC bits[sizeof(Key)];           // Key
     UC action_count;                // Number of actions
