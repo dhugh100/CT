@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
         FILE *fp = fopen(output_csv, "wb");
         if (!fp) {
             fprintf(stderr, "Error: Cannot open output file %s\n", output_csv);
-            free_strategy(strat);
+            free_strategy(strat, strat_count);
             return 1;
         }
         eval_games_selfplay(strat, strat_count, iterations, seed, &stats, fp, dataset_mode);
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     print_eval_stats(&stats);
 
     // Cleanup
-    free_strategy(strat);
+    free_strategy(strat, strat_count);
 
     return 0;
 }

@@ -4,38 +4,34 @@
 #include "abstraction.h"
 #include "util.h"
 #include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-// Load strategy from binary file — keeps quantized Strat_255 in memory
-// Dequantize only at lookup time (get_best_action) to save memory
+// Load strategy from binary file via mmap — zero-copy, no malloc.
+// Supports files larger than available RAM; OS pages in only what's needed.
 Strat_255 *load_strategy(const char *filename, long *count)
 {
-    FILE *fp = fopen(filename, "rb");
-    if (!fp) {
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0) {
         fprintf(stderr, "Error: Cannot open strategy file %s\n", filename);
         return NULL;
     }
 
     struct stat st;
-    stat(filename, &st);
+    fstat(fd, &st);
     long file_size = st.st_size;
     long node_count = file_size / sizeof(Strat_255);
+    size_t map_size = (size_t)node_count * sizeof(Strat_255);
 
     printf("Loading strategy from %s\n", filename);
     printf("File size: %ld bytes\n", file_size);
     printf("Node count: %ld\n", node_count);
 
-    Strat_255 *strat = (Strat_255 *)malloc(node_count * sizeof(Strat_255));
-    if (!strat) {
-        fprintf(stderr, "Error: Cannot allocate memory for strategy\n");
-        fclose(fp);
-        return NULL;
-    }
-
-    size_t nread = fread(strat, sizeof(Strat_255), node_count, fp);
-    fclose(fp);
-    if ((long)nread != node_count) {
-        fprintf(stderr, "Error: Read %zu nodes, expected %ld\n", nread, node_count);
-        free(strat);
+    Strat_255 *strat = (Strat_255 *)mmap(NULL, map_size, PROT_READ, MAP_SHARED, fd, 0);
+    close(fd);
+    if (strat == MAP_FAILED) {
+        fprintf(stderr, "Error: mmap failed for strategy file %s\n", filename);
         return NULL;
     }
 
@@ -139,8 +135,8 @@ UC get_best_action(Strat_255 *strat, long count, State *s)
     return best_action;
 }
 
-// Free strategy memory
-void free_strategy(Strat_255 *strat)
+// Unmap strategy — count must match the value returned by load_strategy
+void free_strategy(Strat_255 *strat, long count)
 {
-    free(strat);
+    munmap(strat, (size_t)count * sizeof(Strat_255));
 }
