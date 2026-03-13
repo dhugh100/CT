@@ -52,6 +52,6 @@ int main(int argc, char *argv[])
     play_game(strat, strat_count, winning_score, dealer, seed);
 
     // Cleanup
-    free_strategy(strat);
+    free_strategy(strat, strat_count);
     return 0;
 }
