@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "types.h"
 #include "strategy.h"
 #include "eval.h"
@@ -45,13 +49,53 @@ int main(int argc, char *argv[])
     if (output_csv) printf("Dataset output: %s (mode: %s)\n", output_csv, dataset_mode_name);
     printf("\n");
 
+    /*
     // Load strategy
     long strat_count = 0;
     Strat_255 *strat = load_strategy(strategy_file, &strat_count);
     if (!strat) {
         return 1;
     }
+    */
 
+    int fd = open(strategy_file, O_RDONLY);
+    if (fd == -1) {
+        fprintf(stderr, "Error: Cannot open strategy file %s\n", strategy_file);
+        return 1;
+    }
+
+    struct stat sb;
+    if (fstat(fd, &sb) == -1) {
+        perror("fstat");
+        close(fd);
+        return 1;
+    }
+    size_t file_size = sb.st_size;
+     // Load strategy
+     Strat_255 *strat = mmap(NULL,
+                           file_size,
+                           PROT_READ,
+                           MAP_SHARED,
+                           fd,
+                           0);
+
+    if (strat == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+
+    long strat_count = file_size / sizeof(Strat_255);
+    printf("sizeof(Strat_255): %zu\n", sizeof(Strat_255));
+    printf("file_size: %zu\n", file_size);
+    printf("strat_count: %ld\n", strat_count);
+    if (strat_count > 0) {
+        printf("first key: ");
+        for (int i = 0; i < (int)sizeof(Key); i++) printf("%02X", strat[0].bits[i]);
+        printf("\n");
+        printf("last  key: ");
+        for (int i = 0; i < (int)sizeof(Key); i++) printf("%02X", strat[strat_count-1].bits[i]);
+        printf("\n");
+    }
     printf("\n");
 
     // Run evaluation
@@ -61,9 +105,10 @@ int main(int argc, char *argv[])
         FILE *fp = fopen(output_csv, "wb");
         if (!fp) {
             fprintf(stderr, "Error: Cannot open output file %s\n", output_csv);
-            free_strategy(strat);
+            // free_strategy(strat);
             return 1;
         }
+        strat_count = file_size / sizeof(Strat_255);
         eval_games_selfplay(strat, strat_count, iterations, seed, &stats, fp, dataset_mode);
         fclose(fp);
         printf("Dataset written to %s\n", output_csv);
@@ -76,7 +121,7 @@ int main(int argc, char *argv[])
     print_eval_stats(&stats);
 
     // Cleanup
-    free_strategy(strat);
+    //free_strategy(strat);
 
     return 0;
 }
