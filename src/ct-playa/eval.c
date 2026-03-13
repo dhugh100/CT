@@ -119,7 +119,7 @@ void play_hand_random(State *s)
 typedef struct {
     int player, stage, trick_num, trump, dealer;
     int winning_bidder, winning_bid;
-    UC key[12];
+    UC key[13];
     UC action;
     int strategy_hit;
 } DecisionRecord;
@@ -130,7 +130,7 @@ static void write_dataset_header(FILE *fp)
 {
     fprintf(fp, "game_id,player,stage,trick_num,trump,dealer,"
                 "winning_bidder,winning_bid,"
-                "k00,k01,k02,k03,k04,k05,k06,k07,k08,k09,k10,k11,"
+                "k00,k01,k02,k03,k04,k05,k06,k07,k08,k09,k10,k11,k12,"
                 "action,strategy_hit,payoff\n");
 }
 
@@ -204,7 +204,7 @@ static void flush_decisions_to_csv(FILE *fp, int game_id,
         fprintf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,",
                 game_id, r->player, r->stage, r->trick_num, r->trump,
                 r->dealer, r->winning_bidder, r->winning_bid);
-        for (int j = 0; j < 12; j++) {
+        for (int j = 0; j < 13; j++) {
             fprintf(fp, "%d,", r->key[j]);
         }
         fprintf(fp, "%d,%d,%d\n", r->action, r->strategy_hit, payoff);

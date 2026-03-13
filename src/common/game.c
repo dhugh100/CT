@@ -137,86 +137,44 @@ void remove_card(State *sp, char p, char index)
     sp->hand[p].card[HAND_SIZE - 1].rank = 0;
 }
 
-// Return the bucket for a card based on rank
-UC get_bucket(Card c)
+// Return the action category for a trump card
+UC get_trump_cat(Card c)
 {
-    UC bucket = 0;
-    if (c.rank >= 12 && c.rank <=14) bucket = 0;        // High: A], K, Q
-    else if (c.rank == 11) bucket = 1;                   // J
-    else if (c.rank == 10) bucket = 2;                   // 10
-    else if (c.rank >= 5 && c.rank <=9) bucket = 3;     // Medium: 9-5
-    else if (c.rank >= 2 && c.rank <=4) bucket = 4;     // Low: 4-2
-    return bucket;  
-}   
+    if (c.rank >= 12) return TH;              // A, K, Q
+    if (c.rank == 11) return TJ;              // Jack
+    if (c.rank >= 2 && c.rank <= 4) return TL; // 2-4
+    return TG;                                 // 5-10
+}
 
+// Return the action category for a non-trump card
+UC get_other_cat(Card c)
+{
+    if (c.rank >= 10) return OP;  // 10, J, Q, K, A
+    return ON;                     // 2-9
+}
 
-// Return the history type of the played card
-// Led/Response, Trump/Other, Rank
+// Return the h_type for a played card: context flag in upper nibble, action subcategory in lower
 UC match_history_to_card(UC hf, Card c)
 {
-    UC bucket = get_bucket(c);
-
-    // Determine history type based on flags and bucket
-    if (hf & LT)
-        return (bucket == 0) ? LTH : (bucket == 1) ? LTJ : (bucket == 2) ? LTT : (bucket == 3) ? LTM : LTL;
-    else if (hf & RT)
-        return (bucket == 0) ? RTH : (bucket == 1) ? RTJ : (bucket == 2) ? RTT : (bucket == 3) ? RTM : RTL;
-    else if (hf & LO)
-        return (bucket == 0) ? LOH : (bucket == 1) ? LOJ : (bucket == 2) ? LOT : (bucket == 3) ? LOM : LOL;
-    else if (hf & RO)
-        return (bucket == 0) ? ROH : (bucket == 1) ? ROJ : (bucket == 2) ? ROT : (bucket == 3) ? ROM : ROL;
-    assert(false && "Invalid history type in match_history_to_card");
-    return 0;
-}  
-
+    if (hf == LT || hf == RT)
+        return hf | (get_trump_cat(c) & 0x0F);
+    return hf | (get_other_cat(c) & 0x0F);
+}
 
 bool match_card_to_action(Card c, UC action, UC trump)
 {
-    // Determine which bucket this card belongs to
-    UC bucket = get_bucket(c);
-
     switch (action) {
-        // Pre-trump actions (trump not declared yet)
-        case PH:
-            return (bucket == 0);
-        case PJ:
-            return (bucket == 1);
-        case PT:
-            return (bucket == 2);
-        case PM:
-            return (bucket == 3);
-        case PL:
-            return (bucket == 4);
-        
-        // Trump actions
-        case TH:
-            return (c.suit == trump && bucket == 0);
-        case TJ:
-            return (c.suit == trump && bucket == 1);
-        case TT:
-            return (c.suit == trump && bucket == 2);
-        case TM:
-            return (c.suit == trump && bucket == 3);
-        case TL:
-            return (c.suit == trump && bucket == 4);
-        
-        // Other (non-trump) actions
-        case OH:
-            return (c.suit != trump && bucket == 0);
-        case OJ:
-            return (c.suit != trump && bucket == 1);
-        case OT:
-            return (c.suit != trump && bucket == 2);
-        case OM:
-            return (c.suit != trump && bucket == 3);
-        case OL:
-            return (c.suit != trump && bucket == 4);
-        
+        case TH: return c.suit == trump && c.rank >= 12;
+        case TJ: return c.suit == trump && c.rank == 11;
+        case TL: return c.suit == trump && c.rank >= 2 && c.rank <= 4;
+        case TG: return c.suit == trump && c.rank >= 5 && c.rank <= 10;
+        case OP: return c.suit != trump && c.rank >= 10;
+        case ON: return c.suit != trump && c.rank >= 2 && c.rank <= 9;
         default:
-            assert(false && "Invalid action in match_action");
+            assert(false && "Invalid action in match_card_to_action");
             return false;
     }
-}   
+}
 
 // Return an index to a card in hand for the player
 // - Bind a card to the action by returning an index to a card in the player's hand that matches the action
@@ -273,64 +231,27 @@ bool is_legal_play(State *s, Card c)
         }
     }
 }
-// Return legal plays as abstracted actions 
-// - Abstracted action must be possible with existing cards AND legal given context
-// - Max 15 legal actions (Trump/Other/Pre-trump × High/J/T/Medium/Low)
-// - FLAG is used to indicate if action was added already, only add action once
-// - Card index bind to action during play will handle multiple cards for actions
+// Return legal plays as abstracted actions
+// - Each unique action class appears at most once; card binding happens at play time
 int legal_play(State *s, unsigned char *o)
 {
-    bool seen[256] = {false}; // Track seen actions to avoid duplicates
+    bool seen[256] = {false};
     UC card_qty = HAND_SIZE - s->trick_num;
-    UC p = s->to_act; // Shorten
-    UC oi = 0; // Action index for output array
-    unsigned short flag = 0; // Flag to track if action class already added (needs 12 bits now)
+    UC p = s->to_act;
+    UC oi = 0;
 
     for (int i = 0; i < card_qty; i++) {
         Card c = s->hand[p].card[i];
-        if (!is_legal_play(s, c)) continue; // Skip if not legal
+        if (!is_legal_play(s, c)) continue;
 
-        UC action = 0;
-        
-        // Pre-trump, not yet declared
-        UC bucket = get_bucket(c);
-        if (s->trump == PRE_TRUMP) {
-            switch (bucket) {
-                case 0: action = PH; break;
-                case 1: action = PJ; break;
-                case 2: action = PT; break;
-                case 3: action = PM; break;
-                case 4: action = PL; break;
-            }
-        }
-        // Trump declared
-        else if (s->trump == c.suit) {
-            switch (bucket) {
-                case 0: action = TH; break;
-                case 1: action = TJ; break;
-                case 2: action = TT; break;
-                case 3: action = TM; break;
-                case 4: action = TL; break;
-            }
-        }
-        // Other suit
-        else {
-            switch (bucket) {
-                case 0: action = OH; break;
-                case 1: action = OJ; break;
-                case 2: action = OT; break;
-                case 3: action = OM; break;
-                case 4: action = OL; break;
-            }
-        }
-        
-        // Check if this action type already added
+        UC action = (s->trump != PRE_TRUMP && c.suit == s->trump)
+                    ? get_trump_cat(c)
+                    : get_other_cat(c);
+
         if (!seen[action]) {
             seen[action] = true;
-            o[oi] = action;
-            oi++;
+            o[oi++] = action;
         }
-        
     }
 
     assert(oi > 0 && "No legal plays found");

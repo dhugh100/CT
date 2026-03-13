@@ -15,9 +15,10 @@ void apply_play(State *sp, UC action);
 
 // Helper functions for card play
 bool is_legal_play(State *s, Card c);
-bool match_action(Card c, UC action, UC trump);
+bool match_card_to_action(Card c, UC action, UC trump);
 UC bind_card_index_to_action(State *s, UC action);
 void remove_card(State *sp, char p, char index);
-UC get_bucket(Card);
+UC get_trump_cat(Card c);
+UC get_other_cat(Card c);
 
 #endif // GAME_H
