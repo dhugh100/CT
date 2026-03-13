@@ -177,7 +177,7 @@ static void print_key_decoded(const UC *bits)
 unsigned char get_random(unsigned char min, unsigned char max, unsigned int *seed)
 {
     *seed = (*seed * 1103515245 + 12345) & 0x7fffffff;
-    return min + (*seed % (max - min + 1));
+    return min + ((*seed >> 16) % (max - min + 1));
 }
 
 // Print a single card

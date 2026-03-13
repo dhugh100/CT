@@ -152,7 +152,7 @@ static int kway_merge(Stream *streams, int n, const char *output_file,
 
         if (dup_count == 0 || memcmp(s->bits, accum.bits, sizeof(Key)) != 0 ||
             s->action_count != accum.action_count || 
-            memcmp(s->action,accum.action,accum.action_count != 0)) {
+            memcmp(s->action,accum.action,accum.action_count) != 0) {
             // Write completed group (if any) before starting a new one
             if (dup_count > 0) {
                 for (int j = 0; j < accum.action_count; j++)
