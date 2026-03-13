@@ -115,21 +115,6 @@ UC get_best_action(Strat_255 *strat, long count, State *s)
     // Build key from current state
     Key k = build_key(s);
 
-    // One-shot diagnostic: show first lookup key vs file midpoint
-    static int diag_done = 0;
-    if (!diag_done) {
-        diag_done = 1;
-        printf("[DIAG] First lookup key: ");
-        for (int i = 0; i < (int)sizeof(Key); i++) printf("%02X", k.bits[i]);
-        printf("\n");
-        if (count > 0) {
-            long mid = count / 2;
-            printf("[DIAG] File mid   key: ");
-            for (int i = 0; i < (int)sizeof(Key); i++) printf("%02X", strat[mid].bits[i]);
-            printf("\n");
-        }
-    }
-
     // Find node
     int idx = find_node(strat, count, &k);
     if (idx < 0) {
