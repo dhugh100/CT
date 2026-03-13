@@ -28,17 +28,20 @@ int legal_bid(State *s, UC out[4])
                 out[0] = 0; // Apply should change to forced 1(2)
                 return 1;
             case 1: // First bidder bid 1(2)
-                out[0] = 1; // Can steal
-                out[1] = 2; // Can outbid 
+                out[0] = 0; // Can pass, 
+                out[1] = 1; // Can steal
+                out[2] = 2; // Can outbid 
+                out[3] = 3; // Can outbid 
+                return 4;
+            case 2: // First bidder bid 2(3)
+                out[0] = 0; // Can pass, 
+                out[1] = 2; // Can steal 
                 out[2] = 3; // Can outbid 
                 return 3;
-            case 2: // First bidder bid 2(3)
-                out[0] = 2; // Can steal 
-                out[1] = 3; // Can outbid 
-                return 2;
             case 3: // First bidder bid 3(4)
+                out[0] = 0; // Can pass, 
                 out[0] = 3; // Can steal 
-                return 1;
+                return 2;
             default:
                 assert(false && "Invalid bid value");
                 return 0;
