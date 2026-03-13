@@ -22,11 +22,12 @@ if [ $# -lt 6 ] || [ $# -gt 7 ]; then
     echo "  visit threshold - Nodes visited less than threshold not saved in training"
     echo "  eval_games      - Number of games for evaluation"
     echo "  seed            - Base random seed (0 for random)"
-    echo "  dataset_mode    - Optional: 0=bid NN dataset, 1=play NN dataset (omit to skip)"
+    echo "  dataset_mode    - Optional: 3=bid NN dataset, 4=play NN dataset (omit to skip)"
     echo ""
     echo "Examples:"
     echo "  $0 20 250000 1 3 10000 0        # no dataset"
-    echo "  $0 20 250000 1 3 10000 0 0      # bid NN dataset"
+    echo "  $0 20 250000 1 3 10000 0 3      # bid NN dataset"
+    echo "  $0 20 250000 1 3 10000 0 4      # play NN dataset"
     exit 1
 fi
 
@@ -269,11 +270,11 @@ evaluate_strategy() {
 # ==============================================================================
 
 generate_dataset() {
-    local mode=$1
-    log "=== Generating Self-Play Dataset (dataset_mode=$mode) ==="
-    log "Executing ./bin/ct-playa $FINAL_STRATEGY $EVAL_GAMES 2 $BASE_SEED $DATASET_FILE $mode"
+    local mode=$1  # 3=bid NN, 4=play NN
+    log "=== Generating Dataset (mode=$mode) ==="
+    log "Executing ./bin/ct-playa $FINAL_STRATEGY $EVAL_GAMES $mode $BASE_SEED $DATASET_FILE"
 
-    ./bin/ct-playa "$FINAL_STRATEGY" "$EVAL_GAMES" 2 "$BASE_SEED" "$DATASET_FILE" "$mode" \
+    ./bin/ct-playa "$FINAL_STRATEGY" "$EVAL_GAMES" "$mode" "$BASE_SEED" "$DATASET_FILE" \
         > "${TEMP_DIR}/dataset.log" 2>&1
 
     if [ $? -ne 0 ]; then
