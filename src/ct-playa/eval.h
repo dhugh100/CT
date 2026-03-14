@@ -16,11 +16,10 @@ typedef struct {
     int nodes_not_found;
 } EvalStats;
 
-// Evaluation modes
+// Evaluation modes (used by eval_games only; eval_games_selfplay handles modes 2-4)
 typedef enum {
-    MODE_POLICY,     // P0 uses trained policy, P1 plays randomly
-    MODE_RANDOM,     // Both players play randomly
-    MODE_SELF_PLAY   // Both players use trained policy (for dataset generation)
+    MODE_POLICY,   // P0 uses trained policy, P1 plays randomly
+    MODE_RANDOM,   // Both players play randomly
 } EvalMode;
 
 // Evaluation functions

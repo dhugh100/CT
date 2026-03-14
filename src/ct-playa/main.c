@@ -10,14 +10,15 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc < 5 || argc > 7) {
-        fprintf(stderr, "Usage: %s <strategy_file> <iterations> <mode> <seed> [output_csv [dataset_mode]]\n", argv[0]);
+    if (argc < 5 || argc > 6) {
+        fprintf(stderr, "Usage: %s <strategy_file> <iterations> <mode> <seed> [output_file]\n", argv[0]);
         fprintf(stderr, "  mode: 0=policy (P0 strategy vs random)\n");
         fprintf(stderr, "        1=random (both random)\n");
-        fprintf(stderr, "        2=self-play (strategy vs strategy, requires output_csv)\n");
+        fprintf(stderr, "        2=self-play eval (strategy vs strategy, stats only)\n");
+        fprintf(stderr, "        3=bid dataset (strategy vs strategy, writes bid NN records)\n");
+        fprintf(stderr, "        4=play dataset (strategy vs strategy, writes play NN records)\n");
+        fprintf(stderr, "  output_file: required for modes 3 and 4\n");
         fprintf(stderr, "  seed: 0 for random\n");
-        fprintf(stderr, "  output_csv:   dataset file path (required for mode 2)\n");
-        fprintf(stderr, "  dataset_mode: 0=bid NN (default), 1=play NN (future)\n");
         return 1;
     }
 
@@ -25,24 +26,23 @@ int main(int argc, char *argv[])
     int iterations = atoi(argv[2]);
     int mode = atoi(argv[3]);
     int seed = atoi(argv[4]);
-    const char *output_csv  = (argc >= 6) ? argv[5] : NULL;
-    int dataset_mode        = (argc >= 7) ? atoi(argv[6]) : 0;
+    const char *output_file = (argc >= 6) ? argv[5] : NULL;
 
     if (seed == 0) seed = (unsigned int)time(NULL);
 
-    if (mode == 2 && !output_csv) {
-        fprintf(stderr, "Error: mode 2 (self-play) requires an output_csv argument\n");
+    if ((mode == 3 || mode == 4) && !output_file) {
+        fprintf(stderr, "Error: mode %d requires an output_file argument\n", mode);
         return 1;
     }
 
-    const char *mode_name = (mode == 0) ? "POLICY" : (mode == 1) ? "RANDOM" : "SELF-PLAY";
-    const char *dataset_mode_name = (dataset_mode == 0) ? "bid NN" : "play NN";
+    const char *mode_names[] = { "POLICY", "RANDOM", "SELF-PLAY EVAL", "BID DATASET", "PLAY DATASET" };
+    const char *mode_name = (mode >= 0 && mode <= 4) ? mode_names[mode] : "UNKNOWN";
     printf("=== CT-PLAYA Evaluation ===\n");
     printf("Strategy file: %s\n", strategy_file);
     printf("Iterations: %d\n", iterations);
     printf("Mode: %s\n", mode_name);
     printf("Seed: %u\n", seed);
-    if (output_csv) printf("Dataset output: %s (mode: %s)\n", output_csv, dataset_mode_name);
+    if (output_file) printf("Output: %s\n", output_file);
     printf("\n");
 
     // Load strategy
@@ -57,26 +57,32 @@ int main(int argc, char *argv[])
     // Run evaluation
     EvalStats stats;
 
-    if (mode == 2) {
-        FILE *fp = fopen(output_csv, "wb");
-        if (!fp) {
-            fprintf(stderr, "Error: Cannot open output file %s\n", output_csv);
-            free_strategy(strat);
-            return 1;
-        }
-        eval_games_selfplay(strat, strat_count, iterations, seed, &stats, fp, dataset_mode);
-        fclose(fp);
-        printf("Dataset written to %s\n", output_csv);
-    } else {
+    if (mode == 0 || mode == 1) {
         eval_games(strat, strat_count, iterations, seed,
                    (mode == 0) ? MODE_POLICY : MODE_RANDOM, &stats);
+    } else if (mode == 2) {
+        eval_games_selfplay(strat, strat_count, iterations, seed, &stats, NULL, 0);
+    } else if (mode == 3 || mode == 4) {
+        FILE *fp = fopen(output_file, "wb");
+        if (!fp) {
+            fprintf(stderr, "Error: Cannot open output file %s\n", output_file);
+            free_strategy(strat, strat_count);
+            return 1;
+        }
+        eval_games_selfplay(strat, strat_count, iterations, seed, &stats, fp, mode - 3);
+        fclose(fp);
+        printf("Dataset written to %s\n", output_file);
+    } else {
+        fprintf(stderr, "Error: unknown mode %d\n", mode);
+        free_strategy(strat, strat_count);
+        return 1;
     }
 
     // Print results
     print_eval_stats(&stats);
 
     // Cleanup
-    free_strategy(strat);
+    free_strategy(strat, strat_count);
 
     return 0;
 }

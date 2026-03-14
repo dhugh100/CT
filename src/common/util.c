@@ -16,22 +16,12 @@ static void print_byte_bin(UC b)
 static const char *action_mnemonic(UC action)
 {
     switch (action) {
-        // Play actions (binary defines from types.h)
-        case TH: return "TH";   // Trump High
+        case TH: return "TH";   // Trump High (A,K,Q)
         case TJ: return "TJ";   // Trump Jack
-        case TT: return "TT";   // Trump Ten
-        case TM: return "TM";   // Trump Medium
-        case TL: return "TL";   // Trump Low
-        case OH: return "OH";   // Other High
-        case OJ: return "OJ";   // Other Jack
-        case OT: return "OT";   // Other Ten
-        case OM: return "OM";   // Other Medium
-        case OL: return "OL";   // Other Low
-        case PH: return "PH";   // Pre-trump High
-        case PJ: return "PJ";   // Pre-trump Jack
-        case PT: return "PT";   // Pre-trump Ten
-        case PM: return "PM";   // Pre-trump Medium
-        case PL: return "PL";   // Pre-trump Low
+        case TL: return "TL";   // Trump Low (2-4)
+        case TG: return "TG";   // Trump General (5-10)
+        case OP: return "OP";   // Other Point (10-A)
+        case ON: return "ON";   // Other Non-point (2-9)
         // Bid actions (raw values 0-3, no overlap with play action bytes)
         case 0:  return "PA";   // Pass
         case 1:  return "B2";   // Bid 2pts
@@ -102,22 +92,16 @@ static void dump_hex(const void *data, size_t len)
     if (len % 16 != 0) printf("\n");
 }
 
-// Decode and print key bytes 0-2 (state fields) and 3-14 (counters)
+// Decode and print the 13-byte key
 static void print_key_decoded(const UC *bits)
 {
     // --- binary ---
     printf("Key binary:\n");
-    int col_cnt = 0;
     for (int i = 0; i < (int)sizeof(Key); i++) {
         printf("  [%2d] ", i);
         print_byte_bin(bits[i]);
-        col_cnt++;
-        if (col_cnt >= 120) {
-            printf("\n");
-            col_cnt = 0;
-        } 
+        printf("\n");
     }
-    printf("\n");
 
     // --- hex ---
     printf("Key hex:\n  ");
@@ -150,26 +134,30 @@ static void print_key_decoded(const UC *bits)
     printf("  [2] "); print_byte_bin(bits[2]);
     printf("  trick_num=%d  led_suit=%s\n", trick_num, suit_str(led_suit));
 
-    // --- bytes 3-14: counters ---
-    printf("Counters (bytes 3-14):\n");
-    printf("  LedTrump  [3-4]:  H=%d S=%d M=%d L=%d\n",
-           (bits[3]  >> 4) & 0xF,  bits[3]  & 0xF,
-           (bits[4]  >> 4) & 0xF,  bits[4]  & 0xF);
-    printf("  LedOther  [5-6]:  H=%d S=%d M=%d L=%d\n",
-           (bits[5]  >> 4) & 0xF,  bits[5]  & 0xF,
-           (bits[6]  >> 4) & 0xF,  bits[6]  & 0xF);
-    printf("  RespTrump [7-8]:  H=%d S=%d M=%d L=%d\n",
-           (bits[7]  >> 4) & 0xF,  bits[7]  & 0xF,
-           (bits[8]  >> 4) & 0xF,  bits[8]  & 0xF);
-    printf("  RespOther [9-10]: H=%d S=%d M=%d L=%d\n",
-           (bits[9]  >> 4) & 0xF,  bits[9]  & 0xF,
-           (bits[10] >> 4) & 0xF,  bits[10] & 0xF);
-    printf("  HandTrump [11-12]:H=%d S=%d M=%d L=%d\n",
-           (bits[11] >> 4) & 0xF,  bits[11] & 0xF,
-           (bits[12] >> 4) & 0xF,  bits[12] & 0xF);
-    printf("  HandOther [13-14]:H=%d S=%d M=%d L=%d\n",
-           (bits[13] >> 4) & 0xF,  bits[13] & 0xF,
-           (bits[14] >> 4) & 0xF,  bits[14] & 0xF);
+    // --- bytes 3-10: history counters; trump byte [TH:2|TJ:1|TL:2|TG:3], other byte [OP:3|ON:4|spare:1] ---
+    printf("History (bytes 3-10):\n");
+    const char *ctx[] = {"LedTrump ", "RespTrump", "LedOther ", "RespOther"};
+    for (int p = 0; p < 2; p++) {
+        UC base = 3 + p * 4;
+        for (int c = 0; c < 4; c++) {
+            UC b = bits[base + c];
+            printf("  P%d %s [%2d] ", p, ctx[c], base + c);
+            print_byte_bin(b);
+            if (c < 2)  // trump byte
+                printf("  TH=%d TJ=%d TL=%d TG=%d\n",
+                       (b >> 6) & 0x3, (b >> 5) & 0x1, (b >> 3) & 0x3, b & 0x7);
+            else        // other byte
+                printf("  OP=%d ON=%d\n", (b >> 5) & 0x7, (b >> 1) & 0xF);
+        }
+    }
+
+    // --- bytes 11-12: in-hand counters ---
+    printf("In-hand (bytes 11-12):\n");
+    UC t = bits[11], o = bits[12];
+    printf("  Trump [11] "); print_byte_bin(t);
+    printf("  TH=%d TJ=%d TL=%d TG=%d\n", (t >> 6) & 0x3, (t >> 5) & 0x1, (t >> 3) & 0x3, t & 0x7);
+    printf("  Other [12] "); print_byte_bin(o);
+    printf("  OP=%d ON=%d\n", (o >> 5) & 0x7, (o >> 1) & 0xF);
 }
 
 // Simple LCG random number generator

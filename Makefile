@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Dave Hugh. All rights reserved.
 # Licensed under the MIT License. See README.md for details.
 CC = gcc
-CFLAGS = -g3 -Isrc/common
+CFLAGS = -g3 -Isrc/common -MMD -MP
 LDFLAGS = -pthread -lm
 
 SRC_DIR = src
@@ -31,6 +31,10 @@ KWAYP_OBJS = $(KWAYP_SRCS:$(SRC_DIR)/ct-kwayp/%.c=$(OBJ_DIR)/ct-kwayp/%.o)
 # CT-PBIN (validator) objects
 PBIN_SRCS = $(wildcard $(SRC_DIR)/ct-pbin/*.c)
 PBIN_OBJS = $(PBIN_SRCS:$(SRC_DIR)/ct-pbin/%.c=$(OBJ_DIR)/ct-pbin/%.o)
+
+# Auto-generated header dependencies
+ALL_DEPS = $(patsubst %.o,%.d,$(COMMON_OBJS) $(CT_OBJS) $(PLAYA_OBJS) $(PLAYU_OBJS) $(KWAYP_OBJS) $(PBIN_OBJS))
+-include $(ALL_DEPS)
 
 # All targets
 ALL_TARGETS = $(BIN_DIR)/ct $(BIN_DIR)/ct-playa $(BIN_DIR)/ct-kwayp $(BIN_DIR)/ct-pbin $(BIN_DIR)/ct-playu

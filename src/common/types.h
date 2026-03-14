@@ -31,62 +31,30 @@ typedef unsigned char UC;
 #define BID 0
 #define PLAY 1
 
-// Different action types
-// Bits 567 = T = Trump, O = Other (non-trump), P = pre-trump,
-// Bits 0-3 = H = High (KQA), S =Special (J10), M = Medium (5-9) L = Low (2-4)
+// Play action codes — bit 7 = trump, bit 6 = other; lower nibble = subcategory
+// Trump:  TH=AKQ(3), TJ=Jack(1), TL=Low 2-4(3), TG=General 5-10(6)
+// Other:  OP=Point 10-A(5), ON=Non-point 2-9(8)
+// Pre-trump cards use OP/ON since all cards are non-trump before trump is declared
+#define TH 0b10000001   // Trump High (A,K,Q)
+#define TJ 0b10000010   // Trump Jack
+#define TL 0b10000011   // Trump Low (2-4)
+#define TG 0b10000100   // Trump General (5-10)
+#define OP 0b01000001   // Other Point (10-A)
+#define ON 0b01000010   // Other Non-point (2-9)
 
-#define TH 0b10000001
-#define TJ 0b10000010
-#define TT 0b10000011
-#define TM 0b10000100
-#define TL 0b10000101
-#define OH 0b01000001
-#define OJ 0b01000010
-#define OT 0b01000011
-#define OM 0b01000100
-#define OL 0b01000101
-#define PH 0b00100001
-#define PJ 0b00100010
-#define PT 0b00100011
-#define PM 0b00100100
-#define PL 0b00100101
-
-// History types for tracking how cards were played (for state abstraction)
-#define LT 0b10000000
-#define LO 0b01000000
-#define RT 0b00100000
-#define RO 0b00010000
-
-// Different played card types
-// Bits 4567 - L = led, R = response, T = trump, O = other (non-trump
-// Bits 0-3 = H = High (KQA), J = J. T=10, M = Medium (5-9) L = Low (2-4)
-#define LTH 0b10000001
-#define LTJ 0b10000010
-#define LTT 0b10000011
-#define LTM 0b10000100
-#define LTL 0b10000101
-#define RTH 0b01000001
-#define RTJ 0b01000010
-#define RTT 0b01000011
-#define RTM 0b01000100
-#define RTL 0b01000101
-#define LOH 0b00100001
-#define LOJ 0b00100010
-#define LOT 0b00100011
-#define LOM 0b00100100
-#define LOL 0b00100101
-#define ROH 0b00010001
-#define ROJ 0b00010010
-#define ROT 0b00010011
-#define ROM 0b00010100
-#define ROL 0b00010101
+// h_type context flags — upper nibble of s->h_type[p][i]
+// Lower nibble stores action & 0x0F: 1=TH/OP, 2=TJ/ON, 3=TL, 4=TG
+#define LT 0b10000000   // Led Trump
+#define RT 0b01000000   // Resp Trump
+#define LO 0b00100000   // Led Other
+#define RO 0b00010000   // Resp Other
 
 // Default score values
 #define DEFAULT_LOW 15   // Higher than any card rank
 #define DEFAULT_HIGH 0   // Lower than any card rank
 
-// Maximum actions per decision point (5 trump + 5 other, or 5 pre-trump)
-#define MAX_ACTIONS 10
+// Maximum actions per decision point (4 trump + 2 other)
+#define MAX_ACTIONS 6
 
 // Card structure
 typedef struct {
@@ -154,9 +122,9 @@ typedef struct {
     char t_score[PLAYERS];       // Total score (can be negative if set)
 } State;
 
-// Key structure (19 bytes for state abstraction)
+// Key structure (14 bytes for state abstraction)
 typedef struct {
-    UC bits[19];
+    UC bits[14];
 } Key;
 
 // CFR Node structure
@@ -164,7 +132,8 @@ typedef struct Node {
     Key key;                        // State abstraction key
     UC action_count;                // Number of legal actions
     UC action[MAX_ACTIONS];         // Legal actions
-    float regret_sum[MAX_ACTIONS];   // Cumulative regrets
+    float regret_sum[MAX_ACTIONS];  // Cumulative regrets
+    float strategy[MAX_ACTIONS];    // Current strategy
     float strategy_sum[MAX_ACTIONS]; // Cumulative strategy (for averaging)
     int visits;                     // Number of times visited
     struct Node *next;              // For hash table chaining
