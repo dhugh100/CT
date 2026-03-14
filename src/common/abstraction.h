@@ -7,5 +7,7 @@
 
 // Key building functions
 Key build_key(State *sp);
+void abs_history(State *s, Key *k);
+void abs_cards_in_hand(State *s, Key *k);
 
 #endif // ABSTRACTION_H

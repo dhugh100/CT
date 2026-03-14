@@ -21,7 +21,7 @@ Node *get_or_create(Node **pa, Key *key, UC actions[], UC legal_n, int thread_nu
 float recurse(State *sp, Node **hash_table, int p, int thread_num);
 
 // Regret matching
-void update_strategy(Node *node, float *strategy);
+void update_strategy(Node *node);
 void update_regrets(Node *node, float *action_utilities, float node_utility);
 
 #endif // CFR_H

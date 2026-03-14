@@ -154,9 +154,9 @@ typedef struct {
     char t_score[PLAYERS];       // Total score (can be negative if set)
 } State;
 
-// Key structure (19 bytes for state abstraction)
+// Key structure (12 bytes for state abstraction)
 typedef struct {
-    UC bits[19];
+    UC bits[12];
 } Key;
 
 // CFR Node structure
@@ -164,7 +164,8 @@ typedef struct Node {
     Key key;                        // State abstraction key
     UC action_count;                // Number of legal actions
     UC action[MAX_ACTIONS];         // Legal actions
-    float regret_sum[MAX_ACTIONS];   // Cumulative regrets
+    float regret_sum[MAX_ACTIONS];  // Cumulative regrets
+    float strategy[MAX_ACTIONS];    // Current strategy
     float strategy_sum[MAX_ACTIONS]; // Cumulative strategy (for averaging)
     int visits;                     // Number of times visited
     struct Node *next;              // For hash table chaining
