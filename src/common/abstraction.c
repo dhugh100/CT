@@ -85,11 +85,25 @@ Key build_key(State *sp)
     // Byte 2 - Trick and suit info
     k.bits[2] |= (sp->trick_num & 0b111) << 5;
     k.bits[2] |= (sp->led_suit & 0b11) << 3;
+    // Bits 2:2-0 - Led action category (responder only; 0=actor is leader)
+    // 1=TH, 2=TJ, 3=TL, 4=TG, 5=OP, 6=ON
+    if (sp->stage == PLAY && sp->to_act != sp->leader) {
+        Card lc = sp->hp[sp->leader].card[sp->trick_num];
+        UC la;
+        if (sp->trump != PRE_TRUMP && lc.suit == sp->trump)
+            la = get_trump_cat(lc) & 0x0F;          // 1=TH, 2=TJ, 3=TL, 4=TG
+        else
+            la = 4 + (get_other_cat(lc) & 0x0F);   // 5=OP, 6=ON
+        k.bits[2] |= (la & 0b111);
+    }
 
     // Bytes 3-9: History counters (byte 10 spare)
     abs_history(sp, &k);
-    // Bytes 10-11: Cards in hand counters
+    // Bytes 11-12: Cards in hand counters (actor only — opponent hand is private)
     abs_cards_in_hand(sp, &k);
+
+    // Byte 13 - Tricks won by actor so far
+    k.bits[13] |= (sp->tricks_won[sp->to_act] & 0b111) << 5;
 
     return k;
 }
