@@ -74,12 +74,6 @@ Node *get_or_create(Node **pa, Key *key, UC actions[], UC legal_n, int thread_nu
     memcpy(&node->key, key, sizeof(Key));
     node->action_count = legal_n;
     memcpy(node->action, actions, legal_n * sizeof(UC));
-    
-    // Initialize with uniform strategy
-    for (int i = 0; i < legal_n; i++) {
-        node->strategy[i] = 1.0f / legal_n;
-    }
-    
     node->next = pa[idx];
     pa[idx] = node;
     
@@ -87,30 +81,26 @@ Node *get_or_create(Node **pa, Key *key, UC actions[], UC legal_n, int thread_nu
 }
 
 // Update strategy using regret matching
-void update_strategy(Node *node)
+// Writes current strategy into caller-provided buffer; accumulates strategy_sum
+void update_strategy(Node *node, float *strategy)
 {
     float normalizing_sum = 0.0f;
-    
-    // Calculate sum of positive regrets
+
     for (int i = 0; i < node->action_count; i++) {
-        if (node->regret_sum[i] > 0) {
+        if (node->regret_sum[i] > 0)
             normalizing_sum += node->regret_sum[i];
-        }
     }
-    
-    // Update strategy
+
     for (int i = 0; i < node->action_count; i++) {
         if (normalizing_sum > 0) {
-            node->strategy[i] = (node->regret_sum[i] > 0) ? 
+            strategy[i] = (node->regret_sum[i] > 0) ?
                 node->regret_sum[i] / normalizing_sum : 0.0f;
         } else {
-            node->strategy[i] = 1.0f / node->action_count;
+            strategy[i] = 1.0f / node->action_count;
         }
-        
-        // Accumulate strategy sum for final average
-        node->strategy_sum[i] += node->strategy[i];
+        node->strategy_sum[i] += strategy[i];
     }
-    
+
     node->visits++;
 }
 
@@ -147,29 +137,26 @@ float recurse(State *sp, Node **hash_table, int p, int thread_num)
     Key k = build_key(sp);
     Node *node = get_or_create(hash_table, &k, actions, num_actions, thread_num);
     
-    // Update strategy using regret matching
-    update_strategy(node);
-    
+    // Compute strategy into local buffer (recomputed each visit from regret_sum)
+    float strategy[MAX_ACTIONS] = {0};
+    update_strategy(node, strategy);
+
     // Calculate action utilities
     float action_utilities[MAX_ACTIONS] = {0};
     float node_utility = 0.0f;
-    
+
     for (int i = 0; i < num_actions; i++) {
         State next_state = *sp;
-        
-        // Apply action
+
         if (sp->stage == BID) {
             apply_bid(&next_state, actions[i]);
         } else {
             UC card_index = bind_card_index_to_action(&next_state, actions[i]);
             apply_play(&next_state, card_index);
         }
-        
-        // Recurse
+
         action_utilities[i] = recurse(&next_state, hash_table, p, thread_num);
-        
-        // Weight by strategy
-        node_utility += node->strategy[i] * action_utilities[i];
+        node_utility += strategy[i] * action_utilities[i];
     }
     
     // Update regrets (only for current player's nodes)

@@ -72,7 +72,7 @@ void save_strategy_file(Node **hash_table, int threads, const char *filename, in
                     continue;
                 }    
                 Strat strat = {0};
-                memcpy(&strat.bits, &cur->key.bits, 15);
+                memcpy(&strat.bits, &cur->key.bits, sizeof(Key));
                 strat.action_count = cur->action_count;
                 memcpy(strat.action, cur->action, MAX_ACTIONS);
                 
