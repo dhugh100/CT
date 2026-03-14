@@ -133,7 +133,6 @@ typedef struct Node {
     UC action_count;                // Number of legal actions
     UC action[MAX_ACTIONS];         // Legal actions
     float regret_sum[MAX_ACTIONS];  // Cumulative regrets
-    float strategy[MAX_ACTIONS];    // Current strategy
     float strategy_sum[MAX_ACTIONS]; // Cumulative strategy (for averaging)
     int visits;                     // Number of times visited
     struct Node *next;              // For hash table chaining

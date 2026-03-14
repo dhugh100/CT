@@ -36,8 +36,8 @@ Binaries are written to the `bin/` directory. No external libraries are required
 | `types.h` | Defines all shared types and constants: `Card`, `Hand`, `State`, `Key`, `Node`, `Strat`, `Strat_255`, and all action/history bit-flag macros. |
 | `deck.c / deck.h` | Handles card dealing, hand evaluation, and end-of-hand scoring including the set (failed bid) penalty. |
 | `game.c / game.h` | Implements game rules: legal bid generation, legal play generation, bid/play application, trick resolution, and card-to-action binding. |
-| `abstraction.c / abstraction.h` | Builds the compact 12-byte information-set `Key` from a game state, encoding history counters and cards-in-hand buckets for CFR lookup. |
-| `strategy.c / strategy.h` | Loads a merged binary strategy file into a sorted lookup table and provides binary-search retrieval of action probabilities for a given game state key. |
+| `abstraction.c / abstraction.h` | Builds the compact 14-byte information-set `Key` from a game state, encoding dealer/bid metadata, trick context, per-player play history (as rank-bucket counters grouped by led/response × trump/other), and current hand contents. |
+| `strategy.c / strategy.h` | Loads a merged strategy binary via `mmap` (zero-copy, no `malloc`; OS pages in only what is needed) and provides binary-search retrieval of the best action for a given state key. Unmaps with `free_strategy`. |
 | `util.c / util.h` | Provides debugging helpers: card/hand/state printers, full `Node`, `Strat`, and `Strat_255` dump functions (binary, hex, and decoded key fields), and the LCG random number generator. |
 
 ### Executable — `ct` (CFR Trainer, `src/ct/`)
@@ -88,7 +88,7 @@ Binaries are written to the `bin/` directory. No external libraries are required
 |---|---|
 | `0` | Policy evaluation: P0 uses strategy, P1 plays randomly. Reports win rates and strategy coverage. |
 | `1` | Random baseline: both players random. |
-| `2` | Self-play dataset generation: both players use the strategy; records each decision to a binary file for neural network training. Requires `output_file` and `dataset_mode` (0=bid NN, 1=play NN). |
+| `2` | Self-play dataset generation: both players use the strategy; records each decision point to a CSV file for neural network training. Requires `output_file`. Outputs 26 columns per row: `game_id, player, stage, trick_num, trump, dealer, winning_bidder, winning_bid, k00–k13 (14 key bytes), action, strategy_hit, payoff`. |
 
 ### Executable — `ct-pbin` (Validator, `src/ct-pbin/`)
 
@@ -156,7 +156,7 @@ The human player is Player 1; the AI is Player 0. Cards are displayed in suit/ra
 | `visit_threshold` | Nodes visited fewer than this many times are pruned during training. |
 | `eval_games` | Number of games used to evaluate the merged strategy. |
 | `seed` | Base random seed; pass `0` to use a system-generated seed. |
-| `dataset_mode` | Optional: `0` = generate bid NN dataset; `1` = generate play NN dataset. Omit to skip dataset generation. |
+| `dataset_mode` | Optional: pass any value to enable self-play CSV dataset generation after evaluation. Omit to skip. |
 
 **Examples:**
 ```bash
@@ -168,13 +168,13 @@ The human player is Player 1; the AI is Player 0. Cards are displayed in suit/ra
 - `run.log` — full timestamped execution log
 - `results.csv` — machine-readable summary (win rates, node counts, durations, improvements)
 - `final_strategy.bin` — the merged, quantized strategy file ready for play or evaluation
-- `dataset.bin` — self-play decision records for neural network training (only if `dataset_mode` provided)
+- `dataset.csv` — self-play decision records in CSV format for neural network training (only if `dataset_mode` provided)
 - `temp/` — intermediate per-run files (can be removed after a successful run)
 
 Convenience symlinks are created (or updated) in the working directory after each run:
 - `last_strategy.bin` → most recent `final_strategy.bin`
 - `last_results.csv` → most recent `results.csv`
-- `last_dataset.bin` → most recent `dataset.bin` (only if dataset was generated)
+- `last_dataset.csv` → most recent `dataset.csv` (only if dataset was generated)
 
 **Prerequisites:** Run `make all` before executing the script.
 
@@ -188,14 +188,45 @@ Two separate structs are used — one for training output, one for the compact o
 
 | Struct | Used by | Format | Size |
 |---|---|---|---|
-| `Strat` | `ct` output, `ct-kwayp` input | `float strategy[MAX_ACTIONS]` | ~63 bytes/node |
-| `Strat_255` | `ct-kwayp` output, `ct-playa` / `ct-pbin` input | `UC s255[MAX_ACTIONS]` (0–255) | ~33 bytes/node |
+| `Strat` | `ct` output, `ct-kwayp` input | `float strategy[MAX_ACTIONS]` | ~45 bytes/node |
+| `Strat_255` | `ct-kwayp` output, `ct-playa` / `ct-pbin` input | `UC s255[MAX_ACTIONS]` (0–255) | ~27 bytes/node |
 
 Quantization: `s255[i] = (UC)(strategy[i] * 255.0f + 0.5f)`. Dequantization on load: `strategy[i] = s255[i] / 255.0f`. Using two separate structs (rather than a union) achieves the full memory savings on disk, since a union's size equals its largest member.
 
+### Play Actions
+
+Six abstract action codes cover all possible card plays:
+
+| Code | Hex | Cards |
+|---|---|---|
+| `TH` | `0x81` | Trump High — Ace, King, Queen |
+| `TJ` | `0x82` | Trump Jack |
+| `TL` | `0x83` | Trump Low — 2, 3, 4 |
+| `TG` | `0x84` | Trump General — 5 through 10 |
+| `OP` | `0x41` | Other Point — 10 through Ace (non-trump) |
+| `ON` | `0x42` | Other Non-point — 2 through 9 (non-trump) |
+
+Before trump is declared (`PRE_TRUMP`), all cards are treated as non-trump and use `OP`/`ON`. The `h_type` field stores context in the upper nibble (`LT`/`RT`/`LO`/`RO` for led/response × trump/other) and the action index in the lower nibble.
+
 ### State Key
 
-The 12-byte `Key` is a compact abstraction of the game state used for CFR node lookup. It encodes dealer, bids, bid flags, trump, trick number, led suit, play history (as rank-bucket counters grouped by led/response × trump/other), and current hand contents (as rank buckets). This abstraction reduces the effective game tree to approximately 1 million distinct information sets.
+The 14-byte `Key` is a compact abstraction of the game state used for CFR node lookup. Byte layout:
+
+| Bytes | Contents |
+|---|---|
+| 0 | `[dealer:1 \| bid0:2 \| bid1:2 \| bid_forced:1 \| bid_stolen:1 \| winning_bidder:1]` |
+| 1 | `[winning_bid:2 \| trump:3 \| leader:1 \| to_act:1 \| stage:1]` |
+| 2 | `[trick_num:3 \| led_suit:2 \| led_action:3]` — `led_action` encodes the card the leader played (0=actor is leader, 1=TH, 2=TJ, 3=TL, 4=TG, 5=OP, 6=ON); only meaningful when `stage==PLAY` and `to_act!=leader` |
+| 3 | P0 Led Trump history `[TH:2 \| TJ:1 \| TL:2 \| TG:3]` |
+| 4 | P0 Response Trump history `[TH:2 \| TJ:1 \| TL:2 \| TG:3]` |
+| 5 | P0 Led Other history `[OP:3 \| ON:4 \| spare:1]` |
+| 6 | P0 Response Other history `[OP:3 \| ON:4 \| spare:1]` |
+| 7–10 | P1 history (same layout as bytes 3–6) |
+| 11 | In-hand Trump counts `[TH:2 \| TJ:1 \| TL:2 \| TG:3]` |
+| 12 | In-hand Other counts `[OP:3 \| ON:4 \| spare:1]` |
+| 13 | `[tricks_won_actor:3 \| spare:5]` |
+
+Delta encoding: each action increments its field by a fixed amount (e.g. TH+=0x40, TJ+=0x20, TL+=0x08, TG+=0x01 in trump bytes; OP+=0x20, ON+=0x02 in other bytes). This abstraction reduces the effective game tree to approximately 1 million distinct information sets.
 
 ### CFR Node
 

@@ -258,15 +258,12 @@ void print_node(Node *n)
     printf("  regret_sum[%d] (floats):\n", MAX_ACTIONS);
     dump_binary(n->regret_sum, MAX_ACTIONS * sizeof(float),
                 sizeof(Key) + 1 + MAX_ACTIONS);
-//    printf("  strategy[%d] (floats):\n", MAX_ACTIONS);
-//    dump_binary(n->strategy, MAX_ACTIONS * sizeof(float),
-//                sizeof(Key) + 1 + MAX_ACTIONS + MAX_ACTIONS * sizeof(float));
     printf("  strategy_sum[%d] (floats):\n", MAX_ACTIONS);
     dump_binary(n->strategy_sum, MAX_ACTIONS * sizeof(float),
-                sizeof(Key) + 1 + MAX_ACTIONS + 2 * MAX_ACTIONS * sizeof(float));
+                sizeof(Key) + 1 + MAX_ACTIONS + MAX_ACTIONS * sizeof(float));
     printf("  visits (int):\n");
     dump_binary(&n->visits, sizeof(int),
-                sizeof(Key) + 1 + MAX_ACTIONS + 3 * MAX_ACTIONS * sizeof(float));
+                sizeof(Key) + 1 + MAX_ACTIONS + 2 * MAX_ACTIONS * sizeof(float));
 
     // Raw hex of struct fields
     printf("Node raw bytes (hex):\n");
@@ -274,7 +271,6 @@ void print_node(Node *n)
     printf("  action_count:"); dump_hex(&n->action_count, 1);
     printf("  action:      "); dump_hex(n->action, MAX_ACTIONS);
     printf("  regret_sum:  "); dump_hex(n->regret_sum, MAX_ACTIONS * sizeof(float));
-//    printf("  strategy:    "); dump_hex(n->strategy, MAX_ACTIONS * sizeof(float));
     printf("  strategy_sum:"); dump_hex(n->strategy_sum, MAX_ACTIONS * sizeof(float));
     printf("  visits:      "); dump_hex(&n->visits, sizeof(int));
 
@@ -290,12 +286,6 @@ void print_node(Node *n)
     for (int i = 0; i < n->action_count; i++)
         printf("[%s: %8.4f] ", action_mnemonic(n->action[i]), n->regret_sum[i]);
     printf("\n");
-
-    // Strategy
-//    printf("Strategy:     ");
-//    for (int i = 0; i < n->action_count; i++)
-//        printf("[%s: %8.4f] ", action_mnemonic(n->action[i]), n->strategy[i]);
-//    printf("\n");
 
     // Strategy sum
     printf("Strategy sum: ");
@@ -325,16 +315,16 @@ void print_strategy(Strat *s)
     dump_binary(&s->action_count, 1, sizeof(Key));
     printf("  action[%d]:\n", MAX_ACTIONS);
     dump_binary(s->action, MAX_ACTIONS, sizeof(Key) + 1);
-//    printf("  strategy[%d] (floats):\n", MAX_ACTIONS);
-//    dump_binary(s->strategy, MAX_ACTIONS * sizeof(float),
-//                sizeof(Key) + 1 + MAX_ACTIONS);
+    printf("  strategy[%d] (floats):\n", MAX_ACTIONS);
+    dump_binary(s->strategy, MAX_ACTIONS * sizeof(float),
+                sizeof(Key) + 1 + MAX_ACTIONS);
 
     // Raw hex of struct fields
     printf("Strat raw bytes (hex):\n");
     printf("  bits:        "); dump_hex(s->bits, sizeof(Key));
     printf("  action_count:"); dump_hex(&s->action_count, 1);
     printf("  action:      "); dump_hex(s->action, MAX_ACTIONS);
-//    printf("  strategy:    "); dump_hex(s->strategy, MAX_ACTIONS * sizeof(float));
+    printf("  strategy:    "); dump_hex(s->strategy, MAX_ACTIONS * sizeof(float));
 
     // Action count and decoded actions
     printf("Action count: %d\n", s->action_count);
@@ -344,10 +334,10 @@ void print_strategy(Strat *s)
     printf("\n");
 
     // Strategy
-//    printf("Strategy:     ");
-//    for (int i = 0; i < s->action_count; i++)
-//        printf("[%s: %8.4f] ", action_mnemonic(s->action[i]), s->strategy[i]);
-//    printf("\n");
+    printf("Strategy:     ");
+    for (int i = 0; i < s->action_count; i++)
+        printf("[%s: %8.4f] ", action_mnemonic(s->action[i]), s->strategy[i]);
+    printf("\n");
 
     // Key decoded
     print_key_decoded(s->bits);
